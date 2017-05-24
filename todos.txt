@@ -1,0 +1,40 @@
+
+# Experiment managing
+# * Easy to log everything
+# * Easy to generate plots
+# * Easy to extract results
+# * Easy to run on multiple different machines an merge the results
+# * Easy tools for extracting results and such.
+
+# Aspects:
+#     debugging 
+#     logging
+#     serialization
+#     experiment managing
+#     profiling
+#     loading/writing data
+#     running multiple tasks
+#     wrappers for other code
+
+#     schedules
+#     validation
+#     plotting
+#     structures for dealing with various types of data
+#     keeping checklist of things to do
+#     typical transformations for text
+#     batching
+#     padding
+#     job managing 
+#     ranges
+#     reading and writing configuration files
+#     tools to download things from and to servers.
+#     tools for batching and prediction
+
+# for model serialization.
+
+# think about what would be useful with deep architect.
+
+# some parts are clearly for interactivity.
+
+# easy to push a folder to a server and work there.
+# allows you to keep alias.
