@@ -1,4 +1,492 @@
 
+### auxiliary functions for avoiding boilerplate in in assignments
+def retrieve_local_vars(var_names, fmt_tuple=False):
+    return retrieve_values(locals(), var_names, fmt_tuple=fmt_tuple)
+
+def define_obj_vars(obj, d):
+    for k, v in d.iteritems():
+        assert not hasattr(obj, k) 
+        setattr(obj, k, v)
+     
+def retrieve_obj_vars(obj, var_names, fmt_tuple=False):
+    return retrieve_values(vars(obj), var_names, fmt_tuple)
+
+### dictionary manipulation
+import pprint
+
+def create_dict(ks, vs):
+    return dict(zip(ks, vs))
+
+def merge_dicts(ds):
+    out_d = {}
+    for d in ds:
+        for (k, v) in d.iteritems():
+            assert k not in out_d:
+            out_d[k] = v
+    return out_d
+
+def retrieve_values(d, ks, fmt_tuple=False):
+    out_d = {}
+    for k in ks:
+        out_d[k] = d[k]
+    
+    if fmt_tuple:
+        out_d = tuple([out_d[k] for k in ks])
+    return out_d
+
+def sort_items(d, by_key=True, decreasing=False):
+    key_fn = (lambda x: x[0]) if by_key else (lambda x: x[1])
+    return sorted(d.items(), key=key_fn, reverse=decreasing)
+
+def print_dict(d, width=1):
+    pprint.pprint(d, width=width)
+
+def collapse_nested_dict(d, sep='.'):
+    assert all([type(k) == str for k in d.iterkeys()]) and (
+        all([all([type(kk) == str for kk in d[k].iterkeys()]) for k in d.iterkeys()]))
+    
+    ps = []
+    for k in d.iterkeys():
+        for (kk, v) in d[k].iteritems():
+            p = (k + sep + kk, v)
+            ps.append(p)
+    return dict(ps)
+
+def uncollapse_nested_dict(d, sep='.'):
+    assert all([type(k) == str for k in d.iterkeys()]) and (
+        all([len(k.split()) == 2 for k in d.iterkeys()]))
+
+    out_d = []
+    for (k, v) in d.iteritems():
+        (k1, k2) = k.split()
+        if k1 not in out_d:
+            d[k1] = {}
+        d[k1][k2] = v
+
+    return out_d
+
+### simple io
+import json
+
+def read_textfile(fpath, strip=True):
+    with open(fpath, 'r') as f:
+        lines = f.readlines()
+        if strip:
+            lines = [line.strip() for line in lines]
+        return lines
+
+def write_textfile(fpath, lines, append=False, with_newline=True):
+    mode = 'a' if append else 'w'
+
+    with open(fpath, mode) as f:
+        for line in lines:
+            f.write(line)
+            if with_newline:
+                f.write("\n")
+
+def read_dictfile(fpath, sep='\t'):
+    """This function is conceived for dicts with string keys."""
+    lines = read_textfile(fpath)
+    d = dict([lines.split(sep, 1) for line in lines])
+    return d
+
+def write_dictfile(fpath, d, sep="\t", ks=None):
+    """This function is conceived for dicts with string keys. A set of keys 
+    can be passed to specify an ordering to write the keys to disk.
+    """
+    if ks == None:
+        ks = d.keys()
+    assert all([type(k) == str and sep not in k for k in ks])
+    lines = [sep.join([k, str(d[k])]) for k in ks]
+    write_textfile(fpath, lines)
+
+def read_jsonfile(fpath):
+    with open(fpath, 'r') as f:
+        d = json.load(f)
+        return d
+
+def write_jsonfile(d, fpath):
+    with open(fpath, 'w') as f:
+        json.dump(d, f, indent=4)
+
+# check if files are flushed automatically upon termination, or there is 
+# something else that needs to be done.
+def capture_output(f, capture_stdout=True, capture_stderr=True):
+    """Takes a file as argument. The file is managed externally."""
+    if capture_stdout:
+        sys.stdout = f
+    if catpure_stderr:
+        sys.stderr = f
+
+### directory management.
+import os
+import shutil
+
+# TODO: probably needs further clarification on if it is a folder or a file.
+def path_prefix(path):
+    return os.path.split[0]
+
+def path_last_element(path):
+    return os.path.split[1]
+
+def path_relative_to_absolute(path):
+    return os.path.abspath(path)
+
+def file_exists(path):
+    return os.path.isfile(path)
+
+def folder_exists(path):
+    return os.path.isdir(path)
+
+def path_exists(path):
+    return os.path.exists(path)
+
+def create_directory(path):
+    os.makedirs(path)
+
+# TODO: change to the correct notation, be consistent.
+# TODO: ..., also, perhaps if it does not exist.
+def copy_file(src_path, dst_path):
+    assert file_exists(src_path)
+
+    if folder_exists(dst_path):
+        pass
+
+def copy_folder(src_path, dst_path, ignore_hidden=False):
+    pass
+
+def delete_folder(path, abort_if_nonempty=True, recursive=False):
+    pass
+
+# NOTE: should abort if not a file.
+def delete_file(path):
+    pass
+
+# TODO: check that this is in fact correct. add comment about behavior.
+def list_paths(folderpath, ignore_files=False, ignore_dirs=False, 
+        ignore_hidden_dirs=True, ignore_hidden_files=True, ignore_file_exts=[], 
+        recursive=False):
+    assert folder_exists(folderpath)
+    
+    path_list = []
+    # enumerating all desired paths in a directory.
+    for root, dirs, files in os.walk(folderpath):
+        if ignore_hidden_dirs:
+            dirs[:] = [d for d in dirs if not d[0] == '.']
+        if ignore_hidden_files:
+            files = [f for f in files if not f[0] == '.']
+        files = [f for f in files if not any([
+            f.endswith(ext) for ext in ignore_file_exts])]
+
+        if not ignore_files:
+            path_list.extend([join_paths([root, f]) for f in files])
+        if not ignore_dirs:
+            path_list.extend([join_paths([root, d]) for d in dirs])
+        if not recursive:
+            break
+    return path_list
+
+def list_files(folderpath, 
+        ignore_hidden_dirs=True, ignore_hidden_files=True, ignore_file_exts=[], 
+        recursive=False):
+
+    args = retrieve_vars(['recursive', 'ignore_hidden_dirs', 
+        'ignore_hidden_files', 'ignore_file_exts'])
+
+    return list_paths(folderpath, ignore_dirs=True, **args)
+
+def list_folders(folderpath, 
+        ignore_hidden_files=True, ignore_hidden_dirs=True, ignore_file_exts=[], 
+        recursive=False):
+
+    args = retrieve_vars(['recursive', 'ignore_hidden_dirs', 
+        'ignore_hidden_files', 'ignore_file_exts'])
+    return list_paths(folderpath, ignore_files=True, **args)
+
+def join_paths(paths):
+    return os.path.join(*paths)
+
+def pairs_to_filename(ks, vs, kv_sep='', pair_sep='_', prefix='', suffix='.txt'):
+    pairs = [kv_sep.join([k, v]) for (k, v) in zip(ks, vs)]
+    s = prefix + pair_sep.join(pairs) + suffix
+    return s
+
+### date and time
+import datetime
+
+def convert_between_time_units(x, src_units='s', dst_units='h'):
+    units = ['s', 'm', 'h', 'd', 'w']
+    assert src_units in units and dst_units in units
+    d = {}
+    d['s'] = 1.0
+    d['m'] = 60.0 * d['s']
+    d['h'] = 60.0 * d['m']
+    d['d'] = 24.0 * d['h']
+    d['w'] = 7.0 * d['d']
+    return (x * d[src_units]) / d[dst_units]
+
+def now(omit_date=False, omit_time=False, time_before_date=False):
+    assert (not omit_time) or (not omit_date)
+
+    d = datetime.datetime.now()
+
+    date_s = ''
+    if not omit_date:
+        date_s = "%s-%s-%s" % (d.year, d.month, d.day)
+    time_s = ''
+    if not omit_time:
+        date_s = "%s:%s:%s" % (d.hour, d.minute, d.second)
+    
+    vs = []
+    if not omit_date:
+        vs.append(date_s)
+    if not omit_time:
+        vs.append(time_s)
+
+    if len(vs) == 2 and time_before_date:
+        vs = vs[::-1]        
+    s = '|'.join(vs)
+
+    return s
+
+### useful iterators
+import itertools
+
+def iter_product(lst_lst_vals):
+    return list(itertools.product(*lst_lst_vals))
+
+def iter_ortho_all(lst_lst_vals, ref_idxs, ignore_repeats=True):
+    assert len(lst_lst_vals) == len(ref_idxs)
+    ref_r = [lst_lst_vals[pos][idx] for (pos, idx) in enumerate(ref_idxs)]
+
+    # put reference first in this case, if ignoring repeats
+    rs = [] if not ignore_repeats else [tuple(ref_r)]
+
+    num_lsts = len(lst_lst_vals)
+    for i in xrange( num_lsts ):
+        num_vals = len(lst_lst_vals[i])
+        for j in xrange( num_vals ):
+            if ignore_repeats and j == ref_idxs[i]:
+                continue
+
+            r = list(ref_r)
+            r[i] = lst_lst_vals[i][j]
+            rs.append(tuple(r))
+    return rs
+
+def iter_ortho_single(lst_lst_vals, ref_idxs, idx_it, ref_first=True):
+    assert len(lst_lst_vals) == len(ref_idxs)
+    ref_r = [lst_lst_vals[pos][idx] for (pos, idx) in enumerate(ref_idxs)]
+    
+    rs = [] if not ref_first else [tuple(ref_r)]
+
+    num_vals = len(lst_lst_vals[idx_it])
+    for j in xrange( num_vals ):
+        if ref_first and j == ref_idxs[idx_it]:
+            continue
+
+        r = [lst_lst_vals[pos][idx] for (pos, idx) in enumerate(ref_idxs)]
+        r[i] = lst_lst_vals[idx_it][j]
+        rs.append(tuple(r))
+    return rs
+
+### logging
+import time
+import os
+
+# TODO: maybe add units. (in init?)
+class TimeTracker:
+    def __init__(self):
+        self.init_time = time.time()
+        self.last_registered = self.init_time
+    
+    def secs_since_start(self):
+        now = time.time()
+        elapsed = now - self.init_time
+        
+        return elapsed
+        
+    def secs_since_last(self):
+        now = time.time()
+        elapsed = now - self.last_registered
+        self.last_registered = now
+        
+        return elapsed            
+
+# TODO: maybe add units. (in init?)
+class MemoryTracker:
+    def __init__(self):
+        self.last_registered = 0.0
+        self.max_registered = 0.0
+
+    def mbs_total(self):
+        mem_now = mbs_process(os.getpid())
+        if self.max_registered < mem_now:
+            self.max_registered = mem_now
+        
+        return mem_now
+        
+    def mbs_since_last(self):
+        mem_now = self.mbs_total()        
+        
+        mem_dif = mem_now - self.last_registered
+        self.last_registered = mem_now
+        
+        return mem_dif
+
+# TODO: maybe add units. (in init?) same for the other below.
+def print_time(timer, pref_str=''):
+    print('%s%0.2f seconds since start.' % (pref_str, timer.secs_since_start()))
+    print("%s%0.2f seconds since last call." % (pref_str, timer.secs_since_last()))
+
+def print_memory(memer, pref_str=''):
+    print('%s%0.2f MB total.' % (pref_str, memer.mbs_total()))
+    print("%s%0.2f MB since last call." % (pref_str, memer.mbs_since_last()))
+    
+def print_memorytime(memer, timer, pref_str=''):
+    print_memory(memer, pref_str)
+    print_time(timer, pref_str)    
+
+def print_oneliner_memorytime(memer, timer, pref_str=''):
+    print('%s (%0.2f sec last; %0.2f sec total; %0.2f MB last; %0.2f MB total)'
+                 % (pref_str,
+                    timer.secs_since_last(), timer.secs_since_start(),
+                    memer.mbs_since_last(), memer.mbs_total()))
+
+# configurations and results from running programs
+class ArgsDict:
+    def __init__(self, fpath=None, abort_if_exists=True):
+        self.d = {}
+        self.abort_if_exists = abort_if_exists
+        if fpath != None:
+            self._read(fpath)
+    
+    def set_arg(self, key, val, abort_if_exists=True):
+        assert (not self.abort_if_exists) or key not in self.d 
+        assert (type(key) == str and len(key) > 0) and (type(val) == str and len(val) > 0)
+
+        self.d[key] = val
+    
+    def write(self, fpath):
+        save_dict(fpath, self.d.keys(), self.d.values())
+    
+    def _read(self, fpath):
+        return load_dict(fpath)
+#NOTE: this needs to be greatly improved to be useful.
+
+
+# TODO: perhaps add a bit more semantics to these two structures.
+class ConfigDict(ArgsDict):
+    pass
+
+class ResultsDict(ArgsDict):
+    pass
+
+### command line arguments
+import argparse
+
+def CommandLineArgs:
+    def __init__(self, args_prefix=''):
+        self.parser = argparse.ArgumentParser()
+        self.args_prefix = args_prefix
+    
+    def add_arg(self, name, type, default=None, optional=False, help=None):
+        assert type in {''}
+
+        # TODO: this part still has to change.
+        # self.parser.add_argument(self.args_prefix + name, )
+    
+
+
+def set_argument_parser(parser, prefix=''):
+    parser = argparse.ArgumentParser()
+    parser.add_argument
+    parser.add_argument(prefix + 'idfs_filepath',
+        help='path to the file with the idfs data',
+        type=str)
+
+    parser.add_argument(prefix + 'embeddings_filepath',
+        help='path to the file with the embeddings data',
+        type=str)
+
+    # these are the optional arguments
+    parser.add_argument('--' + prefix + 'emb_binarize',
+        help='binarize the embeddings representation for the documents',
+        action='store_true')
+
+    parser.add_argument('--' + prefix + 'emb_normalize',
+        help='normalize the embeddings representation for the documents by \
+            dividing by the number of existing tokens',
+        action='store_true')
+
+### running locally and on a server
+import psutil
+import subprocess
+
+def cpus_total():
+    return psutil.cpu_count()
+
+def cpus_free():
+    frac_free = (1.0 - 0.01 * psutil.cpu_percent())
+    return int( np.round( frac_free * psutil.cpu_count() ) )
+
+def convert_between_byte_units(x, src_units='b', dst_units='mb'):
+     units = ['b', 'kb', 'mb', 'gb', 'tb']
+     assert (src_units in units) and (dst_units in units)
+     return x / float(
+         2 ** (10 * (units.index(dst_units) - units.index(src_units))))
+
+def memory_total(units='mb'):
+    return convert_between_byte_units(psutil.virtual_memory().total, dst_units=units)
+    
+def memory_free(units='mb'):
+    return convert_between_byte_units(psutil.virtual_memory().available, dst_units=units)
+
+# TODO: needs some error checking in case of no gpus. needs a try catch block.
+def gpus_total():
+    return len(subprocess.check_output(['nvidia-smi', '-L']).strip().split())
+
+def gpus_free():
+    return len(gpus_free_ids())
+
+def gpus_free_ids():
+    return subprocess.check_output(['nvidia-smi' '--query-gpu=utilization.gpu', 
+        '--format=csv,noheader'])
+
+def gpus_set_visible(ids):
+    n = gpus_total()
+    assert all([i < n and i >= 0 for i in ids])
+    subprocess.call(['export', 'CUDA_VISIBLE_DEVICES=%s' % ",".join(map(str, ids))])
+
+### download and uploading
+import subprocess
+import os
+
+def remote_path(username, servername, path):
+    return "%s@%s:%s" % (username, servername, src_path)
+
+def download_from_server(username, servername, src_path, dst_path, recursive=False):
+    if recursive:
+        subprocess.call(['scp', '-r', 
+            remote_path(username, servername, src_path), dst_path])
+    else:
+        subprocess.call(['scp',
+            remote_path(username, servername, src_path), dst_path])
+
+def upload_to_server(username, servername, src_path, dst_path, recursive=False):
+    if recursive:
+        subprocess.call(['scp', '-r', src_path,
+            remote_path(username, servername, dst_path)])
+    else:
+        subprocess.call(['scp', src_path,
+            remote_path(username, servername, dst_path)])
+
+# TODO: the recursive functionality is not implemented. check if it is correct.
+# needs additional checking for dst_path. this is not correct in general.
+def download_from_url(url, dst_path, recursive=False):
+    subprocess.call(['wget', url])
+    filename = url.split('/')[-1]
+    os.rename(filename, dst_path)
 
 ### parallelizing on a single machine
 import psutil
@@ -41,266 +529,10 @@ def run_parallel_experiment(experiment_fn, iter_args):
     for p in ps:
         p.join()
 
-### logging
-import time
-import logging
-import os
-import pprint
-
-class TimeTracker:
-    def __init__(self):
-        self.init_time = time.time()
-        self.last_registered = self.init_time
-    
-    def secs_since_start(self):
-        now = time.time()
-        elapsed = now - self.init_time
-        
-        return elapsed
-        
-    def secs_since_last(self):
-        now = time.time()
-        elapsed = now - self.last_registered
-        self.last_registered = now
-        
-        return elapsed            
-
-class MemoryTracker:
-    def __init__(self):
-        self.last_registered = 0.0
-        self.max_registered = 0.0
-
-    def mbs_total(self):
-        mem_now = mbs_process(os.getpid())
-        if self.max_registered < mem_now:
-            self.max_registered = mem_now
-        
-        return mem_now
-        
-    def mbs_since_last(self):
-        mem_now = self.mbs_total()        
-        
-        mem_dif = mem_now - self.last_registered
-        self.last_registered = mem_now
-        
-        return mem_dif
-
-def print_time(timer, pref_str=''):
-    print('%s%0.2f seconds since start.' % (pref_str, timer.secs_since_start()))
-    print("%s%0.2f seconds since last call." % (pref_str, timer.secs_since_last()))
-
-def print_memory(memer, pref_str=''):
-    print('%s%0.2f MB total.' % (pref_str, memer.mbs_total()))
-    print("%s%0.2f MB since last call." % (pref_str, memer.mbs_since_last()))
-    
-def print_memorytime(memer, timer, pref_str=''):
-    print_memory(memer, pref_str)
-    print_time(timer, pref_str)    
-
-def print_oneliner_memorytime(memer, timer, pref_str=''):
-    print('%s (%0.2f sec last; %0.2f sec total; %0.2f MB last; %0.2f MB total)'
-                 % (pref_str,
-                    timer.secs_since_last(), timer.secs_since_start(),
-                    memer.mbs_since_last(), memer.mbs_total()))
-    
-def print_parameters(width=1, **kwargs):
-    pprint.pprint(kwargs, width=width)
-
-### running locally and on a server
-import psutil
-import subprocess
-
-def cpus_total():
-    return psutil.cpu_count()
-
-def cpus_free():
-    frac_free = (1.0 - 0.01 * psutil.cpu_percent())
-    return int( np.round( frac_free * psutil.cpu_count() ) )
-
-def convert_between_byte_units(x, src_units='b', dst_units='mb'):
-     units = ['b', 'kb', 'mb', 'gb', 'tb']
-     assert (src_units in units) and (dst_units in units)
-     return x / float(
-         2 ** (10 * (units.index(dst_units) - units.index(src_units))))
-
-def mem_total(units='mb'):
-    return convert_between_byte_units(psutil.virtual_memory().total, dst_units=units)
-    
-def mem_free(units='mb'):
-    return convert_between_byte_units(psutil.virtual_memory().available, dst_units=units)
-
-# TODO: needs some error checking in case of no gpus.
-def gpus_total():
-    return len(subprocess.check_output(['nvidia-smi', '-L']).strip().split())
-
-def gpus_free():
-    return len(gpus_free_ids())
-
-def gpus_free_ids():
-    return subprocess.check_output(['nvidia-smi' '--query-gpu=utilization.gpu', 
-        '--format=csv,noheader'])
-
-def gpus_set_visible(ids):
-    n = gpus_total()
-    assert all([i < n and i >= 0 for i in ids])
-    subprocess.call(['export', 'CUDA_VISIBLE_DEVICES=%s' % ",".join(map(str, ids))])
-
-### download and uploading
-import subprocess
-import os
-
-def remote_path(username, servername, path):
-    return "%s@%s:%s" % (username, servername, src_path)
-
-def download_from_server(username, servername, src_path, dst_path, recursive=False):
-    if recursive:
-        subprocess.call(['scp', '-r', 
-            remote_path(username, servername, src_path), dst_path])
-    else:
-        subprocess.call(['scp',
-            remote_path(username, servername, src_path), dst_path])
-
-def download_from_server(username, servername, src_path, dst_path, recursive=False):
-    if recursive:
-        subprocess.call(['scp', '-r', src_path,
-            remote_path(username, servername, dst_path)])
-    else:
-        subprocess.call(['scp', src_path,
-            remote_path(username, servername, dst_path)])
-
-def download_from_url(url, dst_path, recursive=False):
-    subprocess.call(['wget', url])
-    filename = url.split('/')[-1]
-    os.rename(filename, dst_path)
-
-### directory management.
-import os
-import shutil
-
-def path_prefix(path):
-    return os.path.split[0]
-
-def path_last_element(path):
-    return os.path.split[1]
-
-def path_relative_to_absolute(path):
-    return os.path.abspath(path)
-
-def is_file(path):
-    return os.path.isfile(path)
-
-def is_dir(path):
-    return os.path.isdir(path)
-
-def path_exists(path):
-    return os.path.exists(path)
-
-def create_directory(path):
-    os.makedirs(path)
-
-# TODO: ..., also, perhaps if it does not exist.
-def copy_file(src_path, dst_path):
-    assert is_file(src_path)
-
-    if is_dir(dst_path):
-        pass
-
-def copy_directory(src_path, dst_path, ignore_hidden=False):
-    pass
-
-def delete_directory(path, abort_if_nonempty=True, recursive=False):
-    pass
-
-# NOTE: should abort if not a file.
-def delete_file(path):
-    pass
-
-## only hidden or inside hidden.
-
-
-def path_list(path, ignore_files=False, ignore_dirs=False, 
-        ignore_hidden_dirs=True, ignore_hidden_files=True, 
-        ignore_file_exts=[],
-        recursive=False):
-    
-    assert is_dir(path)
-    
-    path_list = []
-    # enumerating all desired paths in a directory.
-    for root, dirs, files in os.walk(path):
-        if ignore_hidden_dirs:
-            dirs[:] = [d for d in dirs if not d[0] == '.']
-        if ignore_hidden_files:
-            files = [f for f in files if not f[0] == '.']
-        files = [f for f in files if not any([
-            f.endswith(ext) for ext in ignore_file_exts])]
-
-        if not ignore_files:
-            path_list.extend([join_paths([root, f]) for f in files])
-        if not ignore_dirs:
-            path_list.extend([join_paths([root, d]) for d in dirs])
-        if not recursive:
-            break
-    return path_list
-
-### TODO: add these to the model...
-def file_list(path, ignore_hidden_dirs=True, ignore_hidden_files=True, 
-        ignore_file_exts=[], recursive=False):
-
-    args = retrieve_vars(['recursive', 'ignore_hidden_dirs', 
-        'ignore_hidden_files', 'ignore_file_exts'])
-
-    return path_list(path, ignore_dirs=True, **args)
-
-def folder_list(path, recursive=False, 
-        ignore_hidden_files=True, ignore_hidden_dirs=True):
-
-
-    return path_list(path, ignore_files=True, recursive=recursive)
-
-def join_paths(paths):
-    return os.path.join(*paths)
-
-### simple io
-def read_textfile(fpath, strip=True):
-    with open(fpath, 'r') as f:
-        lines = f.readlines()
-        if strip:
-            lines = [line.strip() for line in lines]
-        return lines
-
-def write_textfile(fpath, lines, append=False, with_newline=True):
-    mode = 'a' if append else 'w'
-
-    with open(fpath, mode) as f:
-        for line in lines:
-            f.write(line)
-            if with_newline:
-                f.write("\n")
-
-def sort_items(d, by_key=True, decreasing=False):
-    key_fn = (lambda x: x[0]) if by_key else (lambda x: x[1])
-    return sorted(d.items(), key=key_fn, reverse=decreasing)
-
-def save_dict(fpath, xs, ys, sep="\t"):
-    lines = [sep.join([x, y]) for (x, y) in zip(xs, ys)]
-    write_textfile(fpath, lines)
-
-def load_dict(fpath, sep='\t'):
-    lines = read_textfile(fpath)
-    d = dict([lines.split(sep) for line in lines])
-    return d
-
-def capture_output(f, capture_stdout=True, capture_stderr=True):
-    """Takes a file as argument. The file is managed externally."""
-    if capture_stdout:
-        sys.stdout = f
-    if catpure_stderr:
-        sys.stderr = f
-
 ### plotting 
 import matplotlib.pyplot as plt 
 
+# TODO: edit with retrieve_vars
 class LinePlot:
     def __init__(self, title=None, xlabel=None, ylabel=None):
         self.data = []
@@ -368,38 +600,13 @@ class GridPlot:
 # TODO: updatable figure.
 
 
-### date and time
-import datetime
 
-def now(omit_date=False, omit_time=False, time_before_date=False):
-    assert (not omit_time) or (not omit_date)
 
-    d = datetime.datetime.now()
+### data to latex
 
-    date_s = ''
-    if not omit_date:
-        date_s = "%s-%s-%s" % (d.year, d.month, d.day)
-    time_s = ''
-    if not omit_time:
-        date_s = "%s:%s:%s" % (d.hour, d.minute, d.second)
-    
-    vs = []
-    if not omit_date:
-        vs.append(date_s)
-    if not omit_time:
-        vs.append(time_s)
-
-    if len(vs) == 2 and time_before_date:
-        vs = vs[::-1]        
-    s = '|'.join(vs)
-
-    return s
-
-### data directly to latex
-
-# perhaps add lines and stuff like that. this can be done.
-# the 
+# perhaps add hlines if needed lines and stuff like that. this can be done.
 # NOTE: perhaps can have some structured representation for the model.
+# TODO: add the latex header. make it multi column too.
 def generate_latex_table(mat, num_places, row_labels=None, column_labels=None,
         bold_type=None, fpath=None, show=True):
     assert bold_type == None or (bold_type[0] in {'smallest', 'largest'} and 
@@ -469,33 +676,6 @@ def generate_latex_table(mat, num_places, row_labels=None, column_labels=None,
     if show:
         print table
 
-# configurations and results from running programs
-class ArgsDict:
-    def __init__(self, fpath=None, abort_if_exists=True):
-        self.d = {}
-        self.abort_if_exists = abort_if_exists
-        if fpath != None:
-            self._read(fpath)
-    
-    def set_arg(self, key, val, abort_if_exists=True):
-        assert (not self.abort_if_exists) or key not in self.d 
-        assert (type(key) == str and len(key) > 0) and (type(val) == str and len(val) > 0)
-
-        self.d[key] = val
-    
-    def write(self, fpath):
-        save_dict(fpath, self.d.keys(), self.d.values())
-    
-    def _read(self, fpath):
-        return load_dict(fpath)
-
-# TODO: perhaps add a bit more semantics to these two structures.
-class ConfigDict(ArgsDict):
-    pass
-
-class ResultsDict(ArgsDict):
-    pass
-
 ### sequences, schedules, and counters (useful for training)
 import numpy as np
 
@@ -505,7 +685,8 @@ class Sequence:
     
     def append(self, x):
         self.data.append(x)
-    
+
+# TODO: these all need to be tested.
 class PatienceRateSchedule:
     def __init__(self, rate_init=1.0e-3, rate_mult=0.1, rate_patience=5, 
             rate_max=np.inf, rate_min=-np.inf, minimizing=True):
@@ -519,7 +700,6 @@ class PatienceRateSchedule:
         self.rate_max = rate_max
         self.rate_min = rate_min
         self.minimizing = minimizing
-        self.duration = duration
         
         # for keeping track of the learning rate updates
         self.counter = rate_patience
@@ -692,10 +872,29 @@ class InMemoryDataset:
 
         return (X_batch_out, y_batch_out)
 
+### simple randomness
+import random
+import numpy as np
+
+def set_random_seed(x=None):
+    np.random.seed(x)
+    random.seed(x)
+
+### TODO: not finished
+def uniform_sample_product(lst_lst_vals, num_samples):
+    for i in xrange(num_samples):
+        pass
+
+### TODO: not finished
+def sample(xs, num_samples, with_replacement=True, p=None):
+    if p == None:
+        pass
 
 ### for simple NLP
 def keep_short_sentences(sents, maxlen):
     return [s for s in sents if len(s) <= maxlen]
+# TODO: change this for sequences maybe. simpler.
+
 
 def count_tokens(sents):
     tk_to_cnt = {}
@@ -752,20 +951,25 @@ def preprocess_sentence(sent, tk_to_idx,
 
     return proc_sent
 
-### simple pytorch manipulation
-import torch
+################################### TODO ###################################
+# ### simple pytorch manipulation
+# NOTE: this needs to be improved.
+# import torch
 
-# TODO: with save and load dicts.
-def pytorch_save_model(model, fpath):
-    pass
+# # TODO: with save and load dicts.
+# def pytorch_save_model(model, fpath):
+#     pass
 
-def pytorch_load_model(fpath):
-    pass
+# def pytorch_load_model(fpath):
+#     pass
 
 # something like this 
 # run on remote gpu and cpu.
+# TODO: run thsi locally or remotely. the gpu one takes more care.
 def run_on_gpu():
     pass
+
+
 
 def run_on_cpu():
     pass
@@ -773,16 +977,7 @@ def run_on_cpu():
 # have to hide the model for this.
 
 # time utils
-def convert_between_time_units(x, src_units='s', dst_units='h'):
-    units = ['s', 'm', 'h', 'd', 'w']
-    assert src_units in units and dst_units in units
-    d = {}
-    d['s'] = 1.0
-    d['m'] = 60.0 * d['s']
-    d['h'] = 60.0 * d['m']
-    d['d'] = 24.0 * d['h']
-    d['w'] = 7.0 * d['d']
-    return (x * d[src_units]) / d[dst_units]
+
 
 # TODO:
 def wait(x, units='s'):
@@ -882,9 +1077,6 @@ def wait(x, units='s'):
 
 # managing some experimental folders and what not.
 
-
-
-
 # will need to mask out certain gpus.
 
 # probably, it is worth to do some name changing and stuff.
@@ -944,8 +1136,6 @@ def wait(x, units='s'):
 
 # folder creation and folder management.
 
-
-
 # mostly for reading and writing, since I think it is always the same.
 # I think that it should get a single figure for it.
 # depending on what you pass, you should be able to get what you want.
@@ -991,10 +1181,6 @@ def wait(x, units='s'):
 # prefer passing a dictionary, and then unpacking.
 
 # something for creating paths out of components
-def pairs_to_filename(ks, vs, kv_sep='', pair_sep='_', prefix='', suffix='.txt'):
-    pairs = [kv_sep.join([k, v]) for (k, v) in zip(ks, vs)]
-    s = prefix + pair_sep.join(pairs) + suffix
-    return s
 
 
 
@@ -1028,36 +1214,14 @@ def pairs_to_filename(ks, vs, kv_sep='', pair_sep='_', prefix='', suffix='.txt')
 
 # this should be something easy to do. 
 # it can be done with choose.
-def sample(xs, num_samples, with_replacement=True, p=None):
-    if p == None:
-        pass
+
+# sample from a 
+
 # logging can be done both to a file and to the terminal.
 
 ### TODO: maybe not all have to be collapsed to the lower level.
 # NOTE: not throughly tested.
-def collapse_nested_dict(d, sep='.'):
-    assert all([type(k) == str for k in d.iterkeys()]) and (
-        all([all([type(kk) == str for kk in d[k].iterkeys()]) for k in d.iterkeys()]))
-    
-    ps = []
-    for k in d.iterkeys():
-        for (kk, v) in d[k].iteritems():
-            p = (k + sep + kk, v)
-            ps.append(p)
-    return dict(ps)
 
-def uncollapse_nested_dict(d, sep='.'):
-    assert all([type(k) == str for k in d.iterkeys()]) and (
-        all([len(k.split()) == 2 for k in d.iterkeys()]))
-
-    out_d = []
-    for (k, v) in d.iteritems():
-        (k1, k2) = k.split()
-        if k1 not in out_d:
-            d[k1] = {}
-        d[k1][k2] = v
-
-    return out_d
 
 # iter_product([1,2,3], [2,3,4])
 # iter_product({'a' : [1,2,3], 'b' : [2,3,4]}) => directly to something.
@@ -1073,55 +1237,10 @@ def uncollapse_nested_dict(d, sep='.'):
 
 # stuff for controlling randomness.
 
-import random
-import numpy as np
+# dictionary aggregate, test what are the value that each element has 
+# it only makes sense to have such a dictionary for extra error checking.
 
-def set_random_seed(x=None):
-    np.random.seed(x)
-    random.seed(x)
 
-# a lot of different things can be done.
-def iter_product(lst_lst_vals):
-    return list(itertools.product(*lst_lst_vals))
-
-def iter_ortho_all(lst_lst_vals, ref_idxs, ignore_repeats=True):
-    assert len(lst_lst_vals) == len(ref_idxs)
-    ref_r = [lst_lst_vals[pos][idx] for (pos, idx) in enumerate(ref_idxs)]
-
-    # put reference first in this case, if ignoring repeats
-    rs = [] if not ignore_repeats else [tuple(ref_r)]
-
-    num_lsts = len(lst_lst_vals)
-    for i in xrange( num_lsts ):
-        num_vals = len(lst_lst_vals[i])
-        for j in xrange( num_vals ):
-            if ignore_repeats and j == ref_idxs[i]:
-                continue
-
-            r = list(ref_r)
-            r[i] = lst_lst_vals[i][j]
-            rs.append(tuple(r))
-    return rs
-
-def iter_ortho_single(lst_lst_vals, ref_idxs, idx_it, ref_first=True):
-    assert len(lst_lst_vals) == len(ref_idxs)
-    ref_r = [lst_lst_vals[pos][idx] for (pos, idx) in enumerate(ref_idxs)]
-    
-    rs = [] if not ref_first else [tuple(ref_r)]
-
-    num_vals = len(lst_lst_vals[idx_it])
-    for j in xrange( num_vals ):
-        if ref_first and j == ref_idxs[idx_it]:
-            continue
-
-        r = [lst_lst_vals[pos][idx] for (pos, idx) in enumerate(ref_idxs)]
-        r[i] = lst_lst_vals[i][j]
-        rs.append(tuple(r))
-    return rs
-
-def unif_sample_product(lst_lst_vals, num_samples):
-    for i in xrange(num_samples):
-        pass
 
 # these iterations cycles are simple, but take some time to figure out.
 
@@ -1179,9 +1298,6 @@ def unif_sample_product(lst_lst_vals, num_samples):
 # I think that assuming one example per iterable is the right way of going 
 # about this. also, consider that most effort is not in load or preprocessing
 # the data, so we can more sloppy about it.
-
-# 
-
     
 
 # NOTE: there are also other iterators that are interesting, but for now,
@@ -1257,14 +1373,10 @@ def unif_sample_product(lst_lst_vals, num_samples):
 # some identification for running some experiment.
 
 # plotting is also probably an interesting idea.
-# the json results locally should work reasonably well.
 
-# easy to do product iterators over configurations. work directly with lists.
-# iterators are more flaky. 
 
 # also, potentially add some common models, and stuff like that.
 
-# merging files directly easily.
 
 
 # have an easy way of generating all configurations, but also, orthogonal 
@@ -1308,8 +1420,6 @@ def unif_sample_product(lst_lst_vals, num_samples):
 # most of it is training configuration.
 
 # around 5000 lines of toolbox code is OK.
-
-# join paths may change.
 
 # essentially, question about using these paths, vs using something that is more 
 # along the lines of variable arguments.
@@ -1406,20 +1516,7 @@ def unif_sample_product(lst_lst_vals, num_samples):
 
 # creating command-line argument commands easily
 
-def create_dict(ks, vs):
-    return dict(zip(ks, vs))
-
-def retrieve_values(d, ks, fmt_tuple=False):
-    out_d = {}
-    for k in ks:
-        out_d[k] = d[k]
-    
-    if fmt_tuple:
-        out_d = tuple([out_d[k] for k in ks])
-    return out_d
-
-def retrieve_vars(var_names, fmt_tuple=False):
-    return retrieve_values(locals(), var_names, fmt_tuple=fmt_tuple)
+# TODO: more stuff to manage the dictionaries.
 
 ### another important aspect.
 # for creating interfaces.
@@ -1427,36 +1524,7 @@ def retrieve_vars(var_names, fmt_tuple=False):
 # is left for the for the program.
 # use the values in 
 
-import argparse
-
-def CommandLineArgs:
-    def __init__(self, args_prefix=''):
-        self.parser = argparse.ArgumentParser()
-    
-    def add_arg(self, name, type, default=None, optional=False, help=None):
-        pass
-    
-
-
-def set_argument_parser(parser, prefix=''):
-
-    parser.add_argument(prefix + 'idfs_filepath',
-        help='path to the file with the idfs data',
-        type=str)
-
-    parser.add_argument(prefix + 'embeddings_filepath',
-        help='path to the file with the embeddings data',
-        type=str)
-
-    # these are the optional arguments
-    parser.add_argument('--' + prefix + 'emb_binarize',
-        help='binarize the embeddings representation for the documents',
-        action='store_true')
-
-    parser.add_argument('--' + prefix + 'emb_normalize',
-        help='normalize the embeddings representation for the documents by \
-            dividing by the number of existing tokens',
-        action='store_true')
+# may specify the type or not.
 
 
     # NOTE: may there is a get parser or something like that.
@@ -1466,8 +1534,6 @@ def set_argument_parser(parser, prefix=''):
 # easy to add arguments and stuff like that. what 
 # cannot be done, do it by returning the parser.
 
-import subprocess
-
 # may be more convenient inside the shell.
 
 # this works. gets trickier 
@@ -1476,14 +1542,22 @@ import subprocess
 # you should should think about running things in the command line.
 # not Python commands.
 
-HOST = "negrinho@128.2.211.186"
-COMMAND = "ls"
+# def run_remotely():
+#     pass
 
-ssh = subprocess.Popen(["ssh", "%s" % HOST, COMMAND],
-                       shell=False,
-                       stdout=subprocess.PIPE,
-                       stderr=subprocess.PIPE)
-result = ssh.stdout.readlines()
+# HOST = "negrinho@128.2.211.186"
+# COMMAND = "ls"
+
+# def download_from_server(username, servername, src_path, dst_path, recursive=False):
+
+
+# ssh = subprocess.Popen(["ssh", "%s" % HOST, COMMAND],
+#                        shell=False,
+#                        stdout=subprocess.PIPE,
+#                        stderr=subprocess.PIPE)
+# result = ssh.stdout.readlines()
+
+# # get the output in the form of a file. that is good.
 
 # get all available machines 
 # TODO: this may be interesting to do at the model.
@@ -1509,8 +1583,6 @@ result = ssh.stdout.readlines()
 # get current commit of the model.
 
 # stuff to handle dates.
-
-
 
 
 # if it is just a matter of tiling the graph, it can be done.
@@ -1629,3 +1701,64 @@ result = ssh.stdout.readlines()
 # research_toolbox
 
 # stuff for profiling and debugging.
+
+# should be easy to compute statistics for all elements in the dataset.
+
+# also, adopt a more functional paradigm for dealing with many things.
+# all things that I can't do, will be done in way  
+
+
+# be consistent in the use of path. like folder_path, file_path, path
+# you can have both. 
+
+# src and dst seem reasoanble.
+
+# using the correct definition is important. it will make things more consistent.
+
+# even for simpler stuff where from the definition it is clear what is the 
+# meaning of it, I think that it should be done.
+
+# for files f
+
+# don't assume more than numpy.
+# or always do it through lists to the extent possible.
+
+# use full names in the functions to the extent possible
+
+# ComandLineArguments()
+
+# use something really simple, in cases where it is very clear.
+
+### this one can be used for the variables.
+
+# it works
+
+# perhaps set local vars.
+
+
+### extremely useful for delegation. for delegation and for passing around 
+# information. positional arguments are hard to keep track of.
+# easier to 
+
+# json is the way to go to generate these files.
+
+# decoupling how much time is it going to take. I think that this is going to 
+# be simple.
+
+### NOTE: this can be done both for the object and something else.
+
+# it they exist, abort. have flag for this. for many cases, it make sense.
+
+# important enough to distinguish between files and folders.
+
+# perhaps better to utf encoding for sure.
+# or maybe just ignore.
+
+# for download, it also makes sense to distinguish between file and folder.
+
+# aggregate dictionaries. that should be nice.
+
+# for configfiles, it would be convenient.
+
+# there is code that is not nice in terms of consistency of abstractions.
+# needs to be improved.
