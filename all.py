@@ -21,7 +21,7 @@ def merge_dicts(ds):
     out_d = {}
     for d in ds:
         for (k, v) in d.iteritems():
-            assert k not in out_d:
+            assert k not in out_d
             out_d[k] = v
     return out_d
 
@@ -385,7 +385,7 @@ class ResultsDict(ArgsDict):
 ### command line arguments
 import argparse
 
-def CommandLineArgs:
+class CommandLineArgs:
     def __init__(self, args_prefix=''):
         self.parser = argparse.ArgumentParser()
         self.args_prefix = args_prefix
