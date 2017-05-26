@@ -110,7 +110,7 @@ def write_jsonfile(d, fpath):
         json.dump(d, f, indent=4)
 
 # check if files are flushed automatically upon termination, or there is 
-# something else that needs to be done.
+# something else that needs to be done. or maybe have a flush flag or something.
 def capture_output(f, capture_stdout=True, capture_stderr=True):
     """Takes a file as argument. The file is managed externally."""
     if capture_stdout:
@@ -353,29 +353,27 @@ def print_oneliner_memorytime(memer, timer, pref_str=''):
                     timer.secs_since_last(), timer.secs_since_start(),
                     memer.mbs_since_last(), memer.mbs_total()))
 
-# configurations and results from running programs
+# for keeping track of configurations and results for programs
 class ArgsDict:
-    def __init__(self, fpath=None, abort_if_exists=True):
+    def __init__(self, fpath=None):
         self.d = {}
-        self.abort_if_exists = abort_if_exists
         if fpath != None:
             self._read(fpath)
     
     def set_arg(self, key, val, abort_if_exists=True):
         assert (not self.abort_if_exists) or key not in self.d 
-        assert (type(key) == str and len(key) > 0) and (type(val) == str and len(val) > 0)
-
+        assert (type(key) == str and len(key) > 0)
         self.d[key] = val
     
     def write(self, fpath):
-        save_dict(fpath, self.d.keys(), self.d.values())
+        write_jsonfile(self.d, fpath)
     
     def _read(self, fpath):
-        return load_dict(fpath)
-#NOTE: this needs to be greatly improved to be useful.
+        return load_jsonfile(fpath)
 
+    def get_dict(self):
+        return dict(d)
 
-# TODO: perhaps add a bit more semantics to these two structures.
 class ConfigDict(ArgsDict):
     pass
 
@@ -390,34 +388,23 @@ class CommandLineArgs:
         self.parser = argparse.ArgumentParser()
         self.args_prefix = args_prefix
     
-    def add_arg(self, name, type, default=None, optional=False, help=None):
-        assert type in {''}
+    def add(self, name, type, default=None, optional=False, help=None,
+            valid_choices=None, list_valued=False):
+        valid_types = {'int' : int, 'str' : str, 'bool' : bool, 'float' : float}
+        assert type in valid_types
 
-        # TODO: this part still has to change.
-        # self.parser.add_argument(self.args_prefix + name, )
+        nargs = 1 if not list_valued else '+'
+        type = valid_types[type]
+
+        self.parser.add_argument('--' + self.args_prefix + name, 
+            required=not optional, default=default, nargs=nargs, 
+            type=type, choices=valid_choices, help=help)
+
+    def parse(self):
+        return self.parser.parse_args()
     
-
-
-def set_argument_parser(parser, prefix=''):
-    parser = argparse.ArgumentParser()
-    parser.add_argument
-    parser.add_argument(prefix + 'idfs_filepath',
-        help='path to the file with the idfs data',
-        type=str)
-
-    parser.add_argument(prefix + 'embeddings_filepath',
-        help='path to the file with the embeddings data',
-        type=str)
-
-    # these are the optional arguments
-    parser.add_argument('--' + prefix + 'emb_binarize',
-        help='binarize the embeddings representation for the documents',
-        action='store_true')
-
-    parser.add_argument('--' + prefix + 'emb_normalize',
-        help='normalize the embeddings representation for the documents by \
-            dividing by the number of existing tokens',
-        action='store_true')
+    def get_parser(self):
+        return self.parser
 
 ### running locally and on a server
 import psutil
@@ -463,7 +450,7 @@ import subprocess
 import os
 
 def remote_path(username, servername, path):
-    return "%s@%s:%s" % (username, servername, src_path)
+    return "%s@%s:%s" % (username, servername, path)
 
 def download_from_server(username, servername, src_path, dst_path, recursive=False):
     if recursive:
@@ -528,6 +515,49 @@ def run_parallel_experiment(experiment_fn, iter_args):
     
     for p in ps:
         p.join()
+
+### running remotely
+import subprocess
+import paramiko
+import getpass
+
+def run_on_server(servername, bash_command, username=None, password=None,
+        folderpath=None, wait_for_output=True, prompt_for_password=False):
+    """SSH into a machine and runs a bash command there. Can specify a folder 
+    to change directory into after logging in.
+    """
+
+    # getting credentials
+    if username != None: 
+        host = username + "@" + servername 
+    else:
+        host = servername
+    
+    if password == None and prompt_for_password:
+        password = getpass.getpass()
+
+    if not wait_for_output:
+        bash_command = "nohup %s &" % bash_command
+
+    if folderpath != None:
+        bash_command = "cd %s && %s" % (folderpath, bash_command) 
+
+    sess = paramiko.SSHClient()
+    sess.load_system_host_keys()
+# ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    sess.connect(servername, username=username, password=password)
+    stdin, stdout, stderr = sess.exec_command(bash_command)
+    
+    # depending if waiting for output or not.
+    if wait_for_output:
+        stdout_lines = stdout.readlines()
+        stderr_lines = stderr.readlines()
+    else:
+        stdout_lines = None
+        stderr_lines = None
+
+    sess.close()
+    return stdout_lines, stderr_lines
 
 ### plotting 
 import matplotlib.pyplot as plt 
@@ -679,6 +709,7 @@ def generate_latex_table(mat, num_places, row_labels=None, column_labels=None,
 ### sequences, schedules, and counters (useful for training)
 import numpy as np
 
+# TODO: this sequence is not very useful.
 class Sequence:
     def __init__(self):
         self.data = []
@@ -1081,15 +1112,7 @@ def wait(x, units='s'):
 
 # probably, it is worth to do some name changing and stuff.
 
-# to run headless 
-
-# use Popen to run remote commands. I think that it is still open
-# try with something simple.
-
-
 # these are mostly for the servers for which I have access.
-
-# think before you run. with great computational power, comes great responsability.
 
 # need some function that goes over multiple machines.
 # function that issues rtp.
@@ -1107,8 +1130,6 @@ def wait(x, units='s'):
 # about the folder to look at.
 # If it is directly. it should be recursive, and have some 
 # form of condition. I need to check into this.
-
-
 
 # totally allows you to do what you want
 
@@ -1132,7 +1153,6 @@ def wait(x, units='s'):
 # creates the wrappers automatically.
 
 # needs to be updated.
-
 
 # folder creation and folder management.
 
@@ -1731,8 +1751,6 @@ def wait(x, units='s'):
 
 ### this one can be used for the variables.
 
-# it works
-
 # perhaps set local vars.
 
 
@@ -1762,3 +1780,76 @@ def wait(x, units='s'):
 
 # there is code that is not nice in terms of consistency of abstractions.
 # needs to be improved.
+
+
+# managing the data folder part of the model. how to manage folders with 
+# data. perhaps register.
+
+# add some stuff to have relative vs direct directories.
+# get something about the current path.
+# get information about hte working directory.
+
+# have a way to setup things in the model.
+
+# use required 
+
+# running different configurations may correspond to different results.
+
+# useful to have a dictionary that changes slightly. simpler than keeping 
+# all the argumemnts around.
+# useful when there are many arguments.
+
+# run the model in many differetn 
+
+# transverse all folders in search of results files and stuff like that.
+# I think path manipulation makes a lot more sense with good tools.
+# for total time and stuff like that.
+
+# to use srun and stuff.
+
+# run a remote command and stuff.
+
+# this can be useful to having stuff setup.
+
+# stuff to pull all the log files from a server.
+# stuff to easily generate multiple paths to ease boilerplate generation.
+# for example, for generating long list of files to run in.
+
+# for example, read a file that is named similarly from 
+# all the elements of a folder. that file should be a dictionary.
+# the question there is that it should probably json for ease of 
+# use.
+
+# apply a function to each of the elements, or may be not.
+
+# that is an interesting way of getting the results from the model.
+
+# can capture all the argumentss, I guess, which means that 
+# that I can use the information.
+
+# typical run, dump the arguments to a file, 
+# dump the results to a file.
+# probably should have a way of indexing the same results.
+
+# next thing: I need to make this more consistent.
+
+# TODO: very important, check the use of the models that I need to
+# 
+
+    
+
+# merge multiple parsers.
+
+# make it possible to merge multiple command ilne arguments.
+
+# stuff to append. stuff to keep an average 
+# and stuff like that.
+# stuff to do both.
+
+### all files matching a certain pattern. 
+# 
+
+# function to filter out. 
+# just 
+
+# doing the same thing in multiple machines.
