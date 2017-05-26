@@ -122,7 +122,6 @@ def capture_output(f, capture_stdout=True, capture_stderr=True):
 import os
 import shutil
 
-# TODO: probably needs further clarification on if it is a folder or a file.
 def path_prefix(path):
     return os.path.split[0]
 
@@ -132,46 +131,83 @@ def path_last_element(path):
 def path_relative_to_absolute(path):
     return os.path.abspath(path)
 
+def path_exists(path):
+    return os.path.exists(path)
+
 def file_exists(path):
     return os.path.isfile(path)
 
 def folder_exists(path):
     return os.path.isdir(path)
 
-def path_exists(path):
-    return os.path.exists(path)
-
-def create_directory(path):
+def create_folder(path, abort_if_exists=True):
+    assert not file_exists(path)
+    if abort_if_exists:
+        assert not path_exists(path)
     os.makedirs(path)
 
-# TODO: change to the correct notation, be consistent.
-# TODO: ..., also, perhaps if it does not exist.
-def copy_file(src_path, dst_path):
-    assert file_exists(src_path)
+#### TODO ####
+##### NOTE: this needs to be made more consistent. don't use for now.
+def copy_file(src_filepath, dst_path, abort_if_dst_exists=True):
+    # multiple failure cases.
+    assert file_exists(src_filepath)
+    assert src_filepath != dst_path
 
+    src_filename = path_last_element(src_filepath)
     if folder_exists(dst_path):
-        pass
+        dst_filepath = join_paths([dst_path, src_filename])
+        assert not (file_exists(dst_filepath) and abort_if_dst_exists)
+        shutil.copyfile(src_filepath, dst_filepath)
 
-def copy_folder(src_path, dst_path, ignore_hidden=False):
-    pass
+    else:
+        dst_folderpath = path_prefix(dst_path)
+        assert folder_exists(dst_folderpath)
+        assert not (file_exists(dst_path) and abort_if_dst_exists)
+        shutil.copyfile(src_path, dst_path)
 
-def delete_folder(path, abort_if_nonempty=True, recursive=False):
-    pass
+def copy_folder(src_folderpath, dst_folderpath, 
+        ignore_hidden_files=False, ignore_hidden_folders):
+    # multiple failure cases for the call.
+    assert folder_exists(src_folderpath)
+    assert src_folderpath != dst_folderpath
 
-# NOTE: should abort if not a file.
-def delete_file(path):
-    pass
+    src_filename = path_last_element(src_folderpath)
+    if folder_exists(dst_path):
+        dst_filepath = join_paths([dst_path, src_filename])
+        assert not (file_exists(dst_filepath) and abort_if_dst_exists)
+        shutil.copyfile(src_folderpath, dst_filepath)
 
-# TODO: check that this is in fact correct. add comment about behavior.
-def list_paths(folderpath, ignore_files=False, ignore_dirs=False, 
-        ignore_hidden_dirs=True, ignore_hidden_files=True, ignore_file_exts=[], 
+    else:
+        dst_folderpath = path_prefix(dst_path)
+        assert folder_exists(dst_folderpath)
+        assert not (file_exists(dst_path) and abort_if_dst_exists)
+        shutil.copyfile(src_folderpath, dst_path)
+##### NOTE: this needs to be made more consistent. don't use for now.
+
+def delete_folder(folderpath, abort_if_nonempty=True, abort_if_notexists=True):
+    assert folder_exists(folderpath) or (not abort_if_notexists)
+
+    if folder_exists(folderpath):
+        assert len(os.listdir(folderpath)) == 0 or (not abort_if_nonempty)
+        shutil.rmtree(folderpath)
+    else:
+        assert not abort_if_notexists
+
+def delete_file(filepath, abort_if_notexists=True):
+    assert file_exists(filepath) or (not abort_if_notexists)
+    if file_exists(filepath)
+        os.remove(filepath)
+
+def list_paths(folderpath, 
+        ignore_files=False, ignore_dirs=False, 
+        ignore_hidden_folders=True, ignore_hidden_files=True, ignore_file_exts=[], 
         recursive=False):
     assert folder_exists(folderpath)
     
     path_list = []
     # enumerating all desired paths in a directory.
     for root, dirs, files in os.walk(folderpath):
-        if ignore_hidden_dirs:
+        if ignore_hidden_folders:
             dirs[:] = [d for d in dirs if not d[0] == '.']
         if ignore_hidden_files:
             files = [f for f in files if not f[0] == '.']
@@ -187,20 +223,21 @@ def list_paths(folderpath, ignore_files=False, ignore_dirs=False,
     return path_list
 
 def list_files(folderpath, 
-        ignore_hidden_dirs=True, ignore_hidden_files=True, ignore_file_exts=[], 
+        ignore_hidden_folders=True, ignore_hidden_files=True, ignore_file_exts=[], 
         recursive=False):
 
-    args = retrieve_vars(['recursive', 'ignore_hidden_dirs', 
+    args = retrieve_vars(['recursive', 'ignore_hidden_folders', 
         'ignore_hidden_files', 'ignore_file_exts'])
 
     return list_paths(folderpath, ignore_dirs=True, **args)
 
 def list_folders(folderpath, 
-        ignore_hidden_files=True, ignore_hidden_dirs=True, ignore_file_exts=[], 
+        ignore_hidden_files=True, ignore_hidden_folders=True, ignore_file_exts=[], 
         recursive=False):
 
-    args = retrieve_vars(['recursive', 'ignore_hidden_dirs', 
+    args = retrieve_vars(['recursive', 'ignore_hidden_folders', 
         'ignore_hidden_files', 'ignore_file_exts'])
+
     return list_paths(folderpath, ignore_files=True, **args)
 
 def join_paths(paths):
@@ -372,13 +409,43 @@ class ArgsDict:
         return load_jsonfile(fpath)
 
     def get_dict(self):
-        return dict(d)
+        return dict(self.d)
 
 class ConfigDict(ArgsDict):
     pass
 
 class ResultsDict(ArgsDict):
     pass
+
+class SummaryDict:
+    def __init__(self, fpath=None, abort_if_different_lengths=False):
+        self.abort_if_different_lengths = abort_if_different_lengths
+        if fpath != None:
+            self.d = self._read(fpath)
+        else:
+            self.d = {}
+        self._check_consistency()
+    
+    def append(self, d):
+        for k, v in d.iteritems():
+            assert all(type(k) == str and len(k) > 0)
+            if k not self.d:
+                self.d[k] = []
+            self.d[k].append(v)
+        
+        self._check_consistency()
+    
+    def write(self, fpath):
+        write_jsonfile(self.d, fpath)
+    
+    def _read(self, fpath):
+        return load_jsonfile(fpath)
+    
+    def _check_consistency(self):
+        assert (not self.abort_if_different_lengths) or all([ ])
+
+    def get_dict(self):
+        return dict(self.d)
 
 ### command line arguments
 import argparse
@@ -544,6 +611,7 @@ def run_on_server(servername, bash_command, username=None, password=None,
 
     sess = paramiko.SSHClient()
     sess.load_system_host_keys()
+# ssh.set_missing_host_key_policy(paramiko.WarningPolicy())
 # ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     sess.connect(servername, username=username, password=password)
     stdin, stdout, stderr = sess.exec_command(bash_command)
@@ -1097,14 +1165,6 @@ def wait(x, units='s'):
 
 # have a way of sending all output to file.
 # sending everything to files is a nice way of going about this.
-
-### remote function calls
-# import paramiko
-
-# probably will have to install on the server.
-
-
-### finish the scripts to run multip
 
 # managing some experimental folders and what not.
 
@@ -1789,10 +1849,6 @@ def wait(x, units='s'):
 # get something about the current path.
 # get information about hte working directory.
 
-# have a way to setup things in the model.
-
-# use required 
-
 # running different configurations may correspond to different results.
 
 # useful to have a dictionary that changes slightly. simpler than keeping 
@@ -1806,8 +1862,6 @@ def wait(x, units='s'):
 # for total time and stuff like that.
 
 # to use srun and stuff.
-
-# run a remote command and stuff.
 
 # this can be useful to having stuff setup.
 
@@ -1834,9 +1888,6 @@ def wait(x, units='s'):
 # next thing: I need to make this more consistent.
 
 # TODO: very important, check the use of the models that I need to
-# 
-
-    
 
 # merge multiple parsers.
 
@@ -1853,3 +1904,127 @@ def wait(x, units='s'):
 # just 
 
 # doing the same thing in multiple machines.
+
+# more stuff to deal with how to iterate over directory folders.
+
+# can do a lot more for registering stuff.
+
+# needs some more tools for managing directories.
+
+# needs to improve stuff for reproducibility.
+
+# needs to improve stuff for reproducibility.
+# generating rerun scripts assuming data is in a certain place. 
+
+# stuff for managing experiment folders.
+
+# default configurations for running all, and running the ones we need.
+
+# all structure to include in the generation script in there.
+# this could be the general structure of a repo. 
+
+# generate simple scripts for it. they should be able to get the absolute paths
+# to the data.
+
+# passing the data directory is good form for running the code.
+
+# also, interactive filtering, perhaps with a dictionary, or something 
+# like that. 
+
+# running them from the command line makes more sense.
+
+# getting to a point where you can run one experiment by calling a 
+# bash script with 32 arguments is what you want to do. after that, 
+# it is quite trivial to parallelize
+
+# basically, each task is calling the model some number of times 
+
+# need to have a way of calling some python command on the command line 
+# there and returning the results.
+
+# this will return the results 
+
+# some python command from some lib, with some addional imports.
+# this will be the case. which can actually be quite long, 
+# that would be quite useful actually.
+
+# stuff for managing experiments necessary.
+
+# add some simple function to retrieve information from the model.
+# like time and other stuff.
+
+# for directly generating experiments from main and stuff like that.
+
+# how to keep track of the changes.
+
+# multiple runs for the same experiment? 
+# copy some experiment configuration? sounds hard...
+# better not.
+
+# merging two experiments.
+
+# some tools for 
+# data.py da 
+# train.py tr
+# model.py mo
+# preprocess.py pr 
+# evaluate.py ev
+# plot.py pl
+# experiments.py ex
+# analyze an (maybe for extra things)
+### ---
+# notes
+# data
+# temp
+# experiments
+# analyses
+# code
+
+# analysis is typically single machine. output goes to something.
+
+# copy_code.
+
+# code in the experiment.
+# stuff like that.
+
+# for getting only files at some level
+# 
+
+# do the groupby in dictionaries
+# and the summaries.
+
+# should be simple to use the file iterator at a high level.
+# produce the scripts to run the experiment.
+
+# decide on the folder structure for the experiments... maybe have a few
+# this is for setting up the experiments.
+
+# I'm making a clean distinction betwenn the files that I want to run and 
+# the files that I want to get.
+
+# also, I should have some simple machine names.
+# for example, for the ones in Alex server.
+
+# stuff to process some csv files.
+# stuff to manipulate dates or to sort according to date. 
+# perhaps create datetime objects from the strings.
+
+# the question is sorting and organizing by the last run.
+# it is also a question of 
+
+# will probably need to set visability for certain variables first.
+
+# the goal is to run these things manually, without having to go to the 
+# server.
+
+# just keeping the password somewhere are look it up.
+
+# most of the computational effort is somewhere else, so it is perfectly fine 
+# to have most of the computation be done somewhere else.
+
+# have a memory folder, it is enough to look for things. 
+# can create experiments easily.
+
+# having a main.
+# it is possible to generate an experiment very easily using the file.
+# and some options for keeping track of information.
