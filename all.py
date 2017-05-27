@@ -140,49 +140,80 @@ def file_exists(path):
 def folder_exists(path):
     return os.path.isdir(path)
 
-def create_folder(path, abort_if_exists=True):
-    assert not file_exists(path)
-    if abort_if_exists:
-        assert not path_exists(path)
-    os.makedirs(path)
+def create_folder(folderpath, 
+        abort_if_exists=True, create_parent_folders=False):
+    assert not file_exists(folderpath)
+    assert create_parent_folders or folder_exists(path_prefix(folderpath))
 
-#### TODO ####
-##### NOTE: this needs to be made more consistent. don't use for now.
-def copy_file(src_filepath, dst_path, abort_if_dst_exists=True):
+    if abort_if_exists:
+        assert not folder_exists(folderpath)
+    os.makedirs(folderpath)
+
+def copy_file(src_filepath, dst_filepath, 
+        abort_if_dst_exists=True, create_parent_folders=False):
     # multiple failure cases.
     assert file_exists(src_filepath)
-    assert src_filepath != dst_path
+    assert src_filepath != dst_filepath
+    assert not (abort_if_dst_exists and file_exists(dst_filepath))  
 
     src_filename = path_last_element(src_filepath)
-    if folder_exists(dst_path):
-        dst_filepath = join_paths([dst_path, src_filename])
-        assert not (file_exists(dst_filepath) and abort_if_dst_exists)
-        shutil.copyfile(src_filepath, dst_filepath)
+    dst_folderpath = path_prefix(dst_filepath)
+    dst_filename = path_last_element(dst_filepath)
+    
+    assert create_parent_folders or folder_exists(dst_folderpath)
+    if not folder_exists(dst_folderpath):
+        create_folder(dst_folderpath, create_parent_folders=True)
 
-    else:
-        dst_folderpath = path_prefix(dst_path)
-        assert folder_exists(dst_folderpath)
-        assert not (file_exists(dst_path) and abort_if_dst_exists)
-        shutil.copyfile(src_path, dst_path)
+    shutil.copyfile(src_filepath, dst_filepath)
 
 def copy_folder(src_folderpath, dst_folderpath, 
-        ignore_hidden_files=False, ignore_hidden_folders):
-    # multiple failure cases for the call.
-    assert folder_exists(src_folderpath)
+        ignore_hidden_files=False, ignore_hidden_folders=False, ignore_file_exts=None,
+        abort_if_dst_exists=True, create_parent_folders=False):
+        ##### TODO: this is a nice copying function, but it needs to be done.
+    # multiple failure cases.
+    assert file_exists(src_folderpath)
     assert src_folderpath != dst_folderpath
+    assert not (abort_if_dst_exists and folder_exists(dst_folderpath))  
 
-    src_filename = path_last_element(src_folderpath)
-    if folder_exists(dst_path):
-        dst_filepath = join_paths([dst_path, src_filename])
-        assert not (file_exists(dst_filepath) and abort_if_dst_exists)
-        shutil.copyfile(src_folderpath, dst_filepath)
+    if (not abort_if_dst_exists) and folder_exists(dst_folderpath):
+        delete_folder(dst_folderpath, abort_if_nonempty=False)
+    
+    pref_dst_folderpath = path_prefix(dst_folderpath)
+    assert create_parent_folders or folder_exists(pref_dst_folderpath)
+    create_folder(dst_folderpath, create_parent_folders=create_parent_folders)
+    
+    # create folders
+    args = retrieve_vars(['ignore_hidden_folders', 'ignore_hidden_files'])  
+    folderpaths = list_folders(src_folderpath, 
+        use_relative_paths=True, recursive=True, **args)
 
-    else:
-        dst_folderpath = path_prefix(dst_path)
-        assert folder_exists(dst_folderpath)
-        assert not (file_exists(dst_path) and abort_if_dst_exists)
-        shutil.copyfile(src_folderpath, dst_path)
-##### NOTE: this needs to be made more consistent. don't use for now.
+    for fo in folderpaths:
+        fo_path = join_path([dst_folderpath, fo])
+        create_folder(fo_path, create_parent_folders=True)
+
+    # copy corresponding files
+    filepaths = list_files(src_folderpath, 
+        use_relative_paths=True, recursive=True, **args)
+        
+    for fi in filepaths:
+        src_fi_path = join_paths([src_folderpath, fo])
+        dst_fi_path = join_path([dst_folderpath, fi])
+        copy_file()
+
+    
+    copy_file()
+
+
+    assert create_parent_folders or folder_exists(dst_folderpath)
+    if not folder_exists(dst_folderpath):
+        create_folder(dst_folderpath, create_parent_folders=True)
+        
+    shutil.copyfile(src_filepath, dst_filepath)
+
+def delete_file(filepath, abort_if_notexists=True):
+    assert file_exists(filepath) or (not abort_if_notexists)
+    if file_exists(filepath)
+        os.remove(filepath)
 
 def delete_folder(folderpath, abort_if_nonempty=True, abort_if_notexists=True):
     assert folder_exists(folderpath) or (not abort_if_notexists)
@@ -193,15 +224,10 @@ def delete_folder(folderpath, abort_if_nonempty=True, abort_if_notexists=True):
     else:
         assert not abort_if_notexists
 
-def delete_file(filepath, abort_if_notexists=True):
-    assert file_exists(filepath) or (not abort_if_notexists)
-    if file_exists(filepath)
-        os.remove(filepath)
-
 def list_paths(folderpath, 
         ignore_files=False, ignore_dirs=False, 
-        ignore_hidden_folders=True, ignore_hidden_files=True, ignore_file_exts=[], 
-        recursive=False):
+        ignore_hidden_folders=True, ignore_hidden_files=True, ignore_file_exts=None, 
+        recursive=False, use_relative_paths=False):
     assert folder_exists(folderpath)
     
     path_list = []
@@ -211,32 +237,39 @@ def list_paths(folderpath,
             dirs[:] = [d for d in dirs if not d[0] == '.']
         if ignore_hidden_files:
             files = [f for f in files if not f[0] == '.']
-        files = [f for f in files if not any([
-            f.endswith(ext) for ext in ignore_file_exts])]
+        if ignore_file_exts != None:
+            files = [f for f in files if not any([
+                f.endswith(ext) for ext in ignore_file_exts])]
 
         if not ignore_files:
-            path_list.extend([join_paths([root, f]) for f in files])
+            if not use_relative_paths:
+                path_list.extend([join_paths([root, f]) for f in files])
+            else: 
+                path_list.extend(files)
         if not ignore_dirs:
-            path_list.extend([join_paths([root, d]) for d in dirs])
+            if not use_relative_paths:
+                path_list.extend([join_paths([root, d]) for d in dirs])
+            else: 
+                path_list.extend(dirs)
         if not recursive:
             break
     return path_list
 
 def list_files(folderpath, 
-        ignore_hidden_folders=True, ignore_hidden_files=True, ignore_file_exts=[], 
-        recursive=False):
+        ignore_hidden_folders=True, ignore_hidden_files=True, ignore_file_exts=None, 
+        recursive=False, use_relative_paths=False):
 
     args = retrieve_vars(['recursive', 'ignore_hidden_folders', 
-        'ignore_hidden_files', 'ignore_file_exts'])
+        'ignore_hidden_files', 'ignore_file_exts', 'use_relative_paths'])
 
     return list_paths(folderpath, ignore_dirs=True, **args)
 
 def list_folders(folderpath, 
-        ignore_hidden_files=True, ignore_hidden_folders=True, ignore_file_exts=[], 
-        recursive=False):
+        ignore_hidden_files=True, ignore_hidden_folders=True, 
+        recursive=False, use_relative_paths=False):
 
     args = retrieve_vars(['recursive', 'ignore_hidden_folders', 
-        'ignore_hidden_files', 'ignore_file_exts'])
+        'ignore_hidden_files', 'use_relative_paths'])
 
     return list_paths(folderpath, ignore_files=True, **args)
 
@@ -442,7 +475,8 @@ class SummaryDict:
         return load_jsonfile(fpath)
     
     def _check_consistency(self):
-        assert (not self.abort_if_different_lengths) or all([ ])
+        assert (not self.abort_if_different_lengths) or (len(
+            set([len(v) for v in self.d.itervalues()])) == 1)
 
     def get_dict(self):
         return dict(self.d)
@@ -534,6 +568,10 @@ def upload_to_server(username, servername, src_path, dst_path, recursive=False):
     else:
         subprocess.call(['scp', src_path,
             remote_path(username, servername, dst_path)])
+
+# there are also questions about the existence of the path or not.
+# also with the path manipulation functionality. as a last resort, I could 
+# just delegate to the function that we call.
 
 # TODO: the recursive functionality is not implemented. check if it is correct.
 # needs additional checking for dst_path. this is not correct in general.
@@ -914,6 +952,8 @@ class StopCounter:
         self.counter = self.stop_patience
         self.num_steps = 0
 
+## TODO: implement the fix decrease schedule and stuff like that.
+
 ### for storing the data
 class InMemoryDataset:
     """Wrapper around a dataset for iteration that allows cycling over the 
@@ -1050,6 +1090,129 @@ def preprocess_sentence(sent, tk_to_idx,
 
     return proc_sent
 
+
+
+### managing large scale experiments.
+def get_valid_name(folderpath, prefix):
+    idx = 0
+    while True:
+        name = "%s%d" % (prefix, idx)
+        path = join_paths([folderpath, name])
+        if not path_exists(path):
+            break
+        else:
+            idx += 1   
+    return name
+
+
+### --data_folder /..../renato/Desktop/research/projects/beam_learn/data
+# or it just uses some remapping
+
+# assumes the code/ data 
+# assumes that the relative paths are correct for running the experiment 
+# from the current directory.
+
+# NOTE: not the perfect way of doing things, but it is a reasonable way for now.
+def create_experiment_folder(code_folderpath, main_filename,
+        argnames, argvalues_list, exps_folderpath, readme, expname=None,
+        data_folderpath=None, 
+        copy_code=True, copy_data=False, use_abspaths=False):
+    
+    assert folder_exists(exps_folderpath)
+    assert expname is None or (not path_exists(
+        join_paths([exps_folderpath, expname])))
+    
+    #### 
+    assert file_exists(main_filepath) and  
+    
+    assert not (copy_code and code_folderpath
+
+    # create the main folder where things for the experiment will be.
+    if expname is None:    
+        expname = get_valid_name(exps_folderpath, "exp")
+    folderpath = join_paths([exps_folderpath, expname])
+    create_folder(folderpath)
+
+    ### copy whatever I need to copy.
+
+    ### set up the scripts that I need to set up.
+
+    ### having a directory, it 
+    # 
+    # 
+    # run_experiments.py .... 32
+    # run 0 1
+    # this is restrictive. 
+    # only copy code. 
+
+
+# these would be interesting, it is just a simple way.
+def create_sweep_experimen_folder():
+    pass
+
+
+# names and indices for the experiments.
+def create_orto_experiment_folder():
+    pass
+
+# TODO: need to add condition to the folder creation that will make it 
+# work better. like, if to create the whole folder structure or not.
+# that would be nice.
+
+# needs to create all the directories.
+
+# needs to create the directories first.
+
+# assume that the references are with respect to this call, so I can map them 
+# accordingly
+
+# ignore the data for now.
+# 
+
+# stuff to kill all jobs. that can be done later.
+
+# assumes that the experiment is ran in the experiment folder.
+    
+
+    # code folder path 
+    # needs to substitute the function. it is annoying because it 
+
+# remap some of the paths or something like that.
+# absolute paths. 
+# kind of tricky. what would that correspond to?
+
+# it is tricky to make sure that this works.
+### if it copies data and code, it needs to map stuff to
+
+
+# is None... this is cool for getting the experiments to work.
+
+### it means that I can run the code while being indexed to the part of the 
+# model that actually matters.
+
+
+### ignore_hidden_files and folders.
+
+# perhaps for running, it is possible to get things to work.
+
+# questions about the model. 
+
+# there are options that upon copying may be set.
+
+
+
+# NOTE: this may have a lot more options about 
+def run_experiment_folder(folderpath):
+    pass
+
+
+
+
+
+
+
+# TODO: stuff for concatenation. 
+
 ################################### TODO ###################################
 # ### simple pytorch manipulation
 # NOTE: this needs to be improved.
@@ -1076,6 +1239,8 @@ def run_on_cpu():
 # have to hide the model for this.
 
 # time utils
+
+# tensorflow manipulation? maybe. installation of pytorch in some servers.
 
 
 # TODO:
@@ -1262,8 +1427,6 @@ def wait(x, units='s'):
 
 # something for creating paths out of components
 
-
-
 # TODO: stuff for using Tensorflow and PyTorch and Tensorboard.
 
 # add stuff for json. it may be simpler to read.
@@ -1288,14 +1451,8 @@ def wait(x, units='s'):
 # uniformly.
 
 
-# add sample uniformly
-
-## 
-
 # this should be something easy to do. 
 # it can be done with choose.
-
-# sample from a 
 
 # logging can be done both to a file and to the terminal.
 
@@ -1320,6 +1477,18 @@ def wait(x, units='s'):
 # dictionary aggregate, test what are the value that each element has 
 # it only makes sense to have such a dictionary for extra error checking.
 
+
+# also, iteration over the folders that satisfy some characteristics, 
+# like having certain values for certain parameters.
+
+# also options about if there are two with the same parameters,
+# I can always get the latest one.
+
+# the experiment folder should be self-contained enough to just be copied to some
+# place and be run there.
+# resarch toolbox would be accessible through that folder,
+
+# "import research_toolbox as tb; tb.run_experiment_folder("exp0", )
 
 
 # these iterations cycles are simple, but take some time to figure out.
@@ -1458,7 +1627,6 @@ def wait(x, units='s'):
 # also, potentially add some common models, and stuff like that.
 
 
-
 # have an easy way of generating all configurations, but also, orthogonal 
 # configurations.
 
@@ -1468,9 +1636,6 @@ def wait(x, units='s'):
 
 # some things can be done programmatically by using closures.
 # to capture some arguments.
-
-# common iterators.
-# 
 
 # also, given a bunch of dictionaries with the same keys, or perhaps 
 # a few different keys, there are ways of working with the model directly.
@@ -1625,18 +1790,6 @@ def wait(x, units='s'):
 # def run_remotely():
 #     pass
 
-# HOST = "negrinho@128.2.211.186"
-# COMMAND = "ls"
-
-# def download_from_server(username, servername, src_path, dst_path, recursive=False):
-
-
-# ssh = subprocess.Popen(["ssh", "%s" % HOST, COMMAND],
-#                        shell=False,
-#                        stdout=subprocess.PIPE,
-#                        stderr=subprocess.PIPE)
-# result = ssh.stdout.readlines()
-
 # # get the output in the form of a file. that is good.
 
 # get all available machines 
@@ -1655,8 +1808,6 @@ def wait(x, units='s'):
 # can also, run locally, but not be affected by the result.
 
 # it works, it just works.
-
-
 
 ### some simple functions to read and write.
 
@@ -1761,8 +1912,6 @@ def wait(x, units='s'):
 # maybe can add an output format.
 
 # perhaps, I should check that I'm in fact looking at a directory.
-
-# TODO: function to merge dictionaries.
 
 # TODO: perhaps will need to add ways of formating the json.
 
@@ -1970,6 +2119,7 @@ def wait(x, units='s'):
 # preprocess.py pr 
 # evaluate.py ev
 # plot.py pl
+# main.py ma
 # experiments.py ex
 # analyze an (maybe for extra things)
 ### ---
@@ -1979,6 +2129,9 @@ def wait(x, units='s'):
 # experiments
 # analyses
 # code
+
+# get paths to the things that the model needs. I think that it is a better way of
+# accomplishing this.
 
 # analysis is typically single machine. output goes to something.
 
@@ -2028,3 +2181,283 @@ def wait(x, units='s'):
 # having a main.
 # it is possible to generate an experiment very easily using the file.
 # and some options for keeping track of information.
+
+# this can be done to run the code very easily.
+# taking the output folder is crucial for success.
+
+# run this with different values of the configuration.
+
+# if they don't have the same, I can add Nones.
+
+# list of dictioaries to CSV.
+
+# experiment which is simply some identification.
+# counting.
+
+# /foldername/exp[n]/files
+# perhaps readme.txt
+# code also, and perhaps data.
+# the experiments should be created with the path of the folder in 
+# mind.
+
+# path to the main folder
+# also, some list of values for the parameters.
+# it takes some number of configurations for the parameters.
+# let us say that it does not repeat the name of the thing multiple 
+# times.
+
+# (.....) # ordered.
+
+# 
+
+# if the code is there, there shouldn't exist really a problem with getting it to 
+# work.
+
+# this may have a lot of options that we want to do to get things to 
+# work. maybe there is some prefix and suffix script that has to be ran for these
+# models. this can be passed somewhere.
+
+
+### TODO: other manipulation with the experiment folder.
+# that can be done.
+
+
+# it should copy the code without git and stuff. this is going to be 
+# pain to get right.
+
+# there are folders and subfolders. 
+
+# may exist data_folderpath or something, but I would rather pass that 
+# somewhere else. also, maybe need to change to some folder.
+
+
+# run one of these folders on the server is actually quite interesting.
+# I just have to say run folder, but only every some experiment.
+# that is what I need.
+
+# probably needs more interface information.
+# 
+
+# operating slurm form the command line.
+
+# this is going to be important for matrix and the other ones.
+
+# sorted, with stable keys.
+
+# important to request the right amount of data and stuff like that.
+
+# login
+# change to the right folder
+# call the correct function to run the experiment
+# (another fucntion to get the results.)
+
+# it really depends on what folder it should work 
+# with. there is a question about what kind of running stuff will it work 
+# with. it is really tricky to get it to run on multiple machines.
+
+# it always refer within the data folder. this is the right thing 
+# to do.
+
+# create an experiment folder that is sort of on par.
+
+# also, regardless of the path used to run the things, it should 
+# always do the right thing..
+
+# allocation of gpus and stuff like that 
+# this is going to be tricky.
+
+# available memory per gpu and stuff like that.
+
+# probably I should have some way of asking for resources.
+
+# maybe wrap in a function.
+# gpu machines in lithium.
+gtx970_gpus = ["dual-970-0-%d" % i for i in xrange(13)] 
+gtx980_gpus = ["quad-980-0-%d" % i for i in xrange(3)]
+k40_gpus = ["quad-k40-0-0", "dual-k40-0-1", "dual-k40-0-2"]
+titan_gpus = ["quad-titan-0-0"]
+all_gpus = gtx970_gpus + gtx980_gpus + k40_gpus + titan_gpus
+
+
+
+### will need some configs for slurm. how to set things up.
+
+# how to work with long running jobs and stuff like that.
+# I need some status files for experiment folders.
+
+# completing the task, would mean that the model, 
+
+# for periodic saving things. 
+
+# just need some path, the rest is agnostic to that path.
+# just needs to know the path and that is it.
+
+# simple jobs for now. and I will be happy.
+# multiple runs for the project.
+
+# readme json with other information
+
+# the path should be relative or something like that.
+# the configuration should be easy to do.
+
+# NOTE: I will probably ignore the fact that 
+
+# may just find a new name.
+
+# always ask for a name.
+
+# simple naming conventions
+# typical folder would be experiment.
+
+# can be local or it can be global
+# run the folder.
+# 
+
+# have some tools for padding.
+# it may have a way of doing reentry, or it may simply try different models.
+
+### NOTE: I need stuff to get the configs out of the folder of the model.
+# what else can we get from it.
+
+# generates a run script and stuff like that.
+
+# no defaults in the experiments.
+
+# copy folder, but with current code. something like  that.
+
+# to manipulate this folder, it is necessary to do the configs.
+
+# programs need to be prepared for reentry.
+
+# about experiment continuity and reentry.
+# that needs to be done with the toolbox.
+
+# look for files of a certain type.
+
+#### ****************
+# there are questions upon the creation of the model
+# run.sh all (run fraction, )  
+# out.txt
+# config.json
+# results.json
+# .... (other files) ....
+# main has to be prepared for reentry, that is it.
+# and files have to be appended.
+
+# needs easy way of making the code run directly. never know anything,
+# for example, how does it know that it has been finished or not.
+
+# some number of different jobs.
+
+# split then in different jobs.
+
+# data <- if we choose to copy it.
+# code <- if we choose to copy it.
+# experiments
+# readme.txt
+# jobs <- all the jobs to run the experiments.
+
+# do it all in terms of relative paths.
+# or perhaps map them to non-relative paths.
+
+# can add more configurations to the experiments folder.
+
+# assumes that the config carries all the necessary information.
+
+# assumes that the model knows what to do with respect to the given data path.
+
+# NOTE: capturing the output could be done at the level of the process.
+# that would be the best thing that we could do
+
+# the question is how much can we get.
+
+# it is a question of reentry and checkpoints and stuff. it runs 
+# until it does not need to run anymore.
+# perhaps keep the model.
+
+# stuff that I can fork off with sbatch or something.
+
+# get a subset of files from the server.
+# that is quite boring to get all the information from the files.
+
+# there is stuff about making parents and things like that.
+
+# the question is the type of run that we need and stuff like that
+# can I run a script that forks some number of jobs.
+# or can I have a script that run some fraction of the model
+
+# run.sh 0 .... njobs
+# run.sh all
+
+# temp, out and other things that are more temporary and for which your command
+# does not care too much.
+
+# either all or a fraction.
+
+
+# commit on the structure.
+
+# reading the results is going to be custom, but should be simple.
+
+# the should exist download tools that mimic the directory structure, but only 
+# get some of the files.
+# needs to add some more information to the model.
+
+# --parallel
+# does one after the other, or something like that.
+
+# list of modules to load and stuff like that. 
+# I think that the experiment was done for the machine.
+# after having all those things, there is no need of the research toolbox.
+
+# TODO: I need stuff for GPU programs.
+
+# launching the job can still be done by logging in in most cases.
+# I think that it is not too bad.
+
+# relative paths are better.
+# I don't see a reason to use absolute paths.
+
+# the other aspect is visualization.
+# that is quite important after you have the results.
+
+# most commands are going to be submitted through the command line.
+# it would be convenient to run the experiment creation in the model.
+# that is something while the other part of the mdooe l 
+
+# copy the results of the model to my persistent space.
+
+# timing based on my iteration.
+# that is something that is quite interesting.
+
+# the fast config to run locally.
+# I think that it would make sense to run those experiments.
+# it should probably have some form of configuration itself that 
+# is useful in reading the model.
+
+# what can I do with that model. this is actually quite interesting. 
+# 
+
+# for gpu programs and stuff like that
+# maybe I could add options which are common in generating the bash scripts 
+# such as what is the model doing and stuff like that.
+
+# NOTE: it does not have to be directly this part of the model.
+# it has to be some form of the model that should work directly.
+
+### I will need to do something for working with this type of model
+# in C or something like that. the question is that I need a few functions 
+# to work with the model. 
+
+# number of jobs. they can be ran in parallel, but they can also be ran in series.
+# so why split. to have more variability in the results before getting 
+# anything. 
+
+# slurm remote runs, how to do it. how can I get it to work.
+# remote slurm vs other type of slurm.
+
+# the tools are important in getting the right amount of memory from the 
+# model. for example, I model it quite easily. then, I can ask for 
+# two times the necessary memory.
+
+# do stuff with the scheduler.
