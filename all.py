@@ -1183,23 +1183,22 @@ def get_valid_name(folderpath, prefix):
 # generating the call lines for a code to main.
 def generate_script_call_lines(main_filepath,
         argnames, argvals, 
-        output_filepath=None, profile_filepath=None, indent=4):
+        output_filepath=None, profile_filepath=None):
 
-    ind = ' ' * indent
     sc_lines = ['python \\'] 
     # add the profiling instruction.
     if profile_filepath is not None:
         sc_lines += ['-m cProfile -o %s \\' % profile_filepath]
     sc_lines += ['%s \\' % main_filepath]
     # arguments for the call
-    sc_lines += ['%s--%s %s \\' % (ind, k, v) 
+    sc_lines += ['    --%s %s \\' % (k, v) 
         for k, v in it.izip(argnames[:-1], argvals[:-1])]
     # add the output redirection.
     if output_filepath is not None:
-        sc_lines += ['%s--%s %s \\' % (ind, argnames[-1], argvals[-1]),
-                    '%s> %s 2>&1' % (ind, output_filepath) ] 
+        sc_lines += ['    --%s %s \\' % (argnames[-1], argvals[-1]),
+                    '    > %s 2>&1' % (output_filepath) ] 
     else:
-        sc_lines += ['%s--%s %s' % (ind, argnames[-1], argvals[-1])] 
+        sc_lines += ['    --%s %s' % (argnames[-1], argvals[-1])] 
     return sc_lines
 
 # all paths are relative to the current working directory or to entry folder path.
@@ -1215,7 +1214,7 @@ def create_run_script(main_filepath,
     # if entry_folderpath is not None:
     #     sc_lines += ['cd %s' % entry_folderpath]
     # call the main function.
-    sc_lines += generate_script_call_lines(indent=4, retrive_values(locals(), 
+    sc_lines += generate_script_call_lines(**retrieve_values(locals(), 
         ['main_filepath', 'argnames', 'argvals', 
         'output_filepath', 'profile_filepath'])) 
     # change back to the previous folder if I change to some other folder.
@@ -1256,23 +1255,29 @@ def create_runall_script_with_parallelization(exp_folderpath):
     sc_lines = [
         '#!/bin/bash',
         'if [ "$#" -ne 0 ] && [ "$#" -ne 2 ]; then',
-        '%secho "usage: run.sh [worked_id num_workers]"' % ind,
-        '%sexit 1' % ind,
+        '    echo "Usage: run.sh [worker_id num_workers]"',
+        '    exit 1',
         'fi',
         'if [ $# -eq 2 ]; then',
-        '%sworker_id=$1' % ind,
-        '%snum_workers=$2' % ind,
+        '    worker_id=$1',
+        '    num_workers=$2',
         'else',
-        '%sworker_id=0' % ind,
-        '%snum_workers=1' % ind,
+        '    worker_id=0',
+        '    num_workers=1',
         'fi',
+        'if [ $num_workers -le $worker_id ] || [ $worker_id -lt 0 ]; then',
+        '    echo "Invalid call: requires 0 <= worker_id < num_workers."',
+        '    exit 1',
+        'fi'
         '',
         'num_exps=%d' % num_exps,
         'i=0',
         'while [ $i -lt $num_exps ]; do',
-        '%sif [ $(( $i % $num_workers )) -eq $worker_id]; do' % ind,
-        '%s%s' % (ind * 2, join_paths([exp_folderpath, "cfg$i", 'run.sh']),
-        '%si=$(($i + 1))' % ind,
+        '    if [ $(($i % $num_workers)) -eq $worker_id ]; then',
+        '        echo cfg$i',
+        '        %s' % join_paths([exp_folderpath, "cfg$i", 'run.sh']),
+        '    fi',
+        '    i=$(( $i + 1 ))',
         'done'
     ]
     # creating the run all script.
@@ -1378,6 +1383,9 @@ def create_experiment_folder(main_filepath,
 
 # entryfolder path.
 # 
+
+# probably, also generate a clean script.
+# but it should not rely on it, in any case.
 
 def load_experiment_folder(exp_folderpath):
     pass
