@@ -1,6 +1,13 @@
 
 ### auxiliary functions for avoiding boilerplate in in assignments
-def define_obj_vars(obj, d):
+def set_obj_vars(obj, d, 
+        abort_if_exists=False, abort_if_notexists=True):
+    d_to = vars(obj)
+    assert (not abort_if_exists) or all(
+        [k not in d_to for k in d.iterkeys()])
+    assert (not abort_if_notexists) or all(
+        [k in d_to for k in d.iterkeys()])    
+
     for k, v in d.iteritems():
         assert not hasattr(obj, k) 
         setattr(obj, k, v)
@@ -8,10 +15,17 @@ def define_obj_vars(obj, d):
 def retrieve_obj_vars(obj, var_names, fmt_tuple=False):
     return retrieve_values(vars(obj), var_names, fmt_tuple)
 
+### partial application and other functional primitives
+import functools
+
+def partial_apply(fn, d):
+    return functools.partial(fn, **d)
+
 ### dictionary manipulation
 import pprint
 
 def create_dict(ks, vs):
+    assert len(ks) == len(vs)
     return dict(zip(ks, vs))
 
 def merge_dicts(ds):
@@ -21,6 +35,20 @@ def merge_dicts(ds):
             assert k not in out_d
             out_d[k] = v
     return out_d
+
+def key_union(ds):
+    ks = []
+    for d in ds:
+        ks.extend(d.keys())
+    return list(set(ks))
+
+def key_intersection(ds):
+    assert len(ds) > 0
+
+    ks = set(ds[0].keys())
+    for d in ds[1:]:
+        ks.intersection_update(d.keys())
+    return list(ks)
 
 def retrieve_values(d, ks, fmt_tuple=False):
     out_d = {}
@@ -35,8 +63,14 @@ def retrieve_values(d, ks, fmt_tuple=False):
 # set if only exists.
 # define only if it does not exist.
 # both should have concrete ways of doing things.
-def set_values(d_to, d_from):
-    raise NotImplementedError
+def set_values(d_to, d_from, 
+        abort_if_exists=False, abort_if_notexists=True):
+    assert (not abort_if_exists) or all(
+        [k not in d_to for k in d_from.iterkeys()])
+    assert (not abort_if_notexists) or all(
+        [k in d_to for k in d_from.iterkeys()])
+    
+    d_to.update(d_from)
 
 def sort_items(d, by_key=True, decreasing=False):
     key_fn = (lambda x: x[0]) if by_key else (lambda x: x[1])
@@ -145,19 +179,31 @@ def file_exists(path):
 def folder_exists(path):
     return os.path.isdir(path)
 
+def create_file(filepath,
+        abort_if_exists=True, create_parent_folders=False):
+    assert create_parent_folders or folder_exists(path_prefix(filepath))
+    assert not (abort_if_exists and file_exists(filepath))
+
+    if create_parent_folders:
+        create_folder(path_prefix(filepath),
+            abort_if_exists=False, create_parent_folders=True)
+
+    with open(filepath, 'w'):
+        pass
+
 def create_folder(folderpath, 
         abort_if_exists=True, create_parent_folders=False):
 
     assert not file_exists(folderpath)
     assert create_parent_folders or folder_exists(path_prefix(folderpath))
+    assert not (abort_if_exists and folder_exists(folderpath))
 
-    if abort_if_exists:
-        assert not folder_exists(folderpath)
     os.makedirs(folderpath)
 
 def copy_file(src_filepath, dst_filepath, 
         abort_if_dst_exists=True, create_parent_folders=False):
 
+    # print src_filepath
     assert file_exists(src_filepath)
     assert src_filepath != dst_filepath
     assert not (abort_if_dst_exists and file_exists(dst_filepath))  
@@ -176,7 +222,7 @@ def copy_folder(src_folderpath, dst_folderpath,
         ignore_hidden_files=False, ignore_hidden_folders=False, ignore_file_exts=None,
         abort_if_dst_exists=True, create_parent_folders=False):
 
-    assert file_exists(src_folderpath)
+    assert folder_exists(src_folderpath)
     assert src_folderpath != dst_folderpath
     assert not (abort_if_dst_exists and folder_exists(dst_folderpath))  
 
@@ -188,19 +234,24 @@ def copy_folder(src_folderpath, dst_folderpath,
     create_folder(dst_folderpath, create_parent_folders=create_parent_folders)
     
     # create all folders in the destination.
-    args = retrieve_values(locals(), ['ignore_hidden_folders', 'ignore_hidden_files'])  
+    args = retrieve_values(locals(), 
+        ['ignore_hidden_folders', 'ignore_hidden_files'])  
     fos = list_folders(src_folderpath, use_relative_paths=True, recursive=True, **args)
 
     for fo in fos:
-        fo_path = join_path([dst_folderpath, fo])
+        fo_path = join_paths([dst_folderpath, fo])
         create_folder(fo_path, create_parent_folders=True)
+    # print fos
 
     # copy all files to the destination. 
+    args = retrieve_values(locals(), 
+        ['ignore_hidden_folders', 'ignore_hidden_files', 'ignore_file_exts'])  
     fis = list_files(src_folderpath, use_relative_paths=True, recursive=True, **args)
-        
+    # print fis
+
     for fi in fis:
         src_fip = join_paths([src_folderpath, fi])
-        dst_fip = join_path([dst_folderpath, fi])
+        dst_fip = join_paths([dst_folderpath, fi])
         copy_file(src_fip, dst_fip)
 
 def delete_file(filepath, abort_if_notexists=True):
@@ -233,19 +284,21 @@ def list_paths(folderpath,
         if ignore_hidden_files:
             files = [f for f in files if not f[0] == '.']
         if ignore_file_exts != None:
+            # print files
             files = [f for f in files if not any([
                 f.endswith(ext) for ext in ignore_file_exts])]
 
+        # get only the path relative to this path.
+        if not use_relative_paths: 
+            pref_root = root 
+        else:
+            pref_root = os.path.relpath(root, folderpath)
+
         if not ignore_files:
-            if not use_relative_paths:
-                path_list.extend([join_paths([root, f]) for f in files])
-            else: 
-                path_list.extend(files)
+            path_list.extend([join_paths([pref_root, f]) for f in files])
         if not ignore_dirs:
-            if not use_relative_paths:
-                path_list.extend([join_paths([root, d]) for d in dirs])
-            else: 
-                path_list.extend(dirs)
+            path_list.extend([join_paths([pref_root, d]) for d in dirs])
+
         if not recursive:
             break
     return path_list
@@ -275,6 +328,20 @@ def pairs_to_filename(ks, vs, kv_sep='', pair_sep='_', prefix='', suffix='.txt')
     pairs = [kv_sep.join([k, v]) for (k, v) in zip(ks, vs)]
     s = prefix + pair_sep.join(pairs) + suffix
     return s
+
+### NOTE: can be done in two parts of the model or not.
+def compress_path(path, out_filepath):
+    raise NotImplementedError
+    # shutil.make_archive(path, 'zip', path)
+    # combine with moving functionality, I think.
+
+def decompress_path(path, out_filename):
+    raise NotImplementedError
+    # pass
+    # shutil.ma
+# TO delete.
+# import shutil
+# shutil.make_archive(output_filename, 'zip', dir_name)
 
 ### date and time
 import datetime
@@ -359,7 +426,6 @@ def iter_ortho_single(lst_lst_vals, ref_idxs, idx_it, ref_first=True):
 import time
 import os
 
-# TODO: maybe add units. (in init?)
 class TimeTracker:
     def __init__(self):
         self.init_time = time.time()
@@ -378,7 +444,6 @@ class TimeTracker:
 
         return convert_between_time_units(elapsed, dst_units=units)            
 
-# TODO: maybe add units. (in init?)
 class MemoryTracker:
     def __init__(self):
         self.last_registered = 0.0
@@ -402,24 +467,35 @@ class MemoryTracker:
     def memory_max(self, units='mb'):
         return convert_between_byte_units(self.max_registered, dst_units=units)
 
-# TODO: maybe add units. (in init?) same for the other below.
-def print_time(timer, pref_str=''):
-    print('%s%0.2f seconds since start.' % (pref_str, timer.time_since_start()))
-    print("%s%0.2f seconds since last call." % (pref_str, timer.time_since_last()))
+def print_time(timer, pref_str='', units='s'):
+    print('%s%0.2f %s since start.' % (pref_str, 
+        timer.time_since_start(units=units), units) )
+    print("%s%0.2f %s seconds since last call." % (pref_str, 
+        timer.time_since_last(units=units), units) )
 
-def print_memory(memer, pref_str=''):
-    print('%s%0.2f MB total.' % (pref_str, memer.memory_total()))
-    print("%s%0.2f MB since last call." % (pref_str, memer.memory_since_last()))
+def print_memory(memer, pref_str='', units='mb'):
+    print('%s%0.2f %s total.' % (pref_str, 
+        memer.memory_total(units=units), units.upper()) )
+    print("%s%0.2f %s since last call." % (pref_str, 
+        memer.memory_since_last(units=units), units.upper()) )
     
-def print_memorytime(memer, timer, pref_str=''):
-    print_memory(memer, pref_str)
-    print_time(timer, pref_str)    
+def print_memorytime(memer, timer, pref_str='', mem_units='mb', time_units='s'):
+    print_memory(memer, pref_str, units=mem_units)
+    print_time(timer, pref_str, units=time_units)    
 
-def print_oneliner_memorytime(memer, timer, pref_str=''):
-    print('%s (%0.2f sec last; %0.2f sec total; %0.2f MB last; %0.2f MB total)'
+def print_oneliner_memorytime(memer, timer, pref_str='', 
+        mem_units='mb', time_units='s'):
+
+    print('%s (%0.2f %s last; %0.2f %s total; %0.2f %s last; %0.2f %s total)'
                  % (pref_str,
-                    timer.time_since_last(), timer.time_since_start(),
-                    memer.memory_since_last(), memer.memory_total()))
+                    timer.time_since_last(units=time_units),
+                    time_units, 
+                    timer.time_since_start(units=time_units),
+                    time_units,                     
+                    memer.memory_since_last(units=mem_units),
+                    mem_units.upper(), 
+                    memer.memory_total(units=mem_units),
+                    mem_units.upper()) )
 
 # for keeping track of configurations and results for programs
 class ArgsDict:
@@ -585,7 +661,7 @@ import time
 
 def mbs_process(pid):
     psutil_p = psutil.Process(pid)
-    mem_p = psutil_p.memory_info()[0] / float(2 ** 20)
+    mem_p = psutil_p.memory_info()[0]
     
     return mem_p
 
@@ -1104,31 +1180,58 @@ def get_valid_name(folderpath, prefix):
             idx += 1   
     return name
 
-def create_run_script(project_folderpath, main_relfilepath,
-        argnames, argvals, out_filepath):
+# generating the call lines for a code to main.
+def generate_script_call_lines(main_filepath,
+        argnames, argvals, 
+        output_filepath=None, profile_filepath=None, indent=4):
+
+    ind = ' ' * indent
+    sc_lines = ['python \\'] 
+    # add the profiling instruction.
+    if profile_filepath is not None:
+        sc_lines += ['-m cProfile -o %s \\' % profile_filepath]
+    sc_lines += ['%s \\' % main_filepath]
+    # arguments for the call
+    sc_lines += ['%s--%s %s \\' % (ind, k, v) 
+        for k, v in it.izip(argnames[:-1], argvals[:-1])]
+    # add the output redirection.
+    if output_filepath is not None:
+        sc_lines += ['%s--%s %s \\' % (ind, argnames[-1], argvals[-1]),
+                    '%s> %s 2>&1' % (ind, output_filepath) ] 
+    else:
+        sc_lines += ['%s--%s %s' % (ind, argnames[-1], argvals[-1])] 
+    return sc_lines
+
+# all paths are relative to the current working directory or to entry folder path.
+def create_run_script(main_filepath,
+        argnames, argvals, script_filepath, 
+        # entry_folderpath=None, 
+        output_filepath=None, profile_filepath=None):
     
-    # creating the script.
-    indent = ' ' * 4
     sc_lines = [
         '#!/bin/bash',
-        'set -e',
-        'cd %s' % project_folderpath, 
-        'python %s \\' % join_paths([project_folderpath, main_relfilepath])
-        ]
-    sc_lines += ['%s--%s %s \\' % (indent, k, v) 
-        for k, v in it.izip(argnames[:-1], argvals[:-1])]
-    sc_lines += ['%s--%s %s' % (indent, argnames[-1], argvals[-1]), 
-                 'cd -']
-    write_textfile(out_filepath, sc_lines, with_newline=True)
-    # giving run permissions.
-    st = os.stat(out_filepath)
+        'set -e']
+    # # change into the entry folder if provided.
+    # if entry_folderpath is not None:
+    #     sc_lines += ['cd %s' % entry_folderpath]
+    # call the main function.
+    sc_lines += generate_script_call_lines(indent=4, retrive_values(locals(), 
+        ['main_filepath', 'argnames', 'argvals', 
+        'output_filepath', 'profile_filepath'])) 
+    # change back to the previous folder if I change to some other folder.
+    # if entry_folderpath is not None:
+    #     sc_lines += ['cd -']
+    write_textfile(script_filepath, sc_lines, with_newline=True)
+    # give run permissions.
+    st = os.stat(script_filepath)
     exec_bits = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
-    os.chmod(out_filepath, st.st_mode | exec_bits)
+    os.chmod(script_filepath, st.st_mode | exec_bits)
 
-# could be done better with a for loop.
+# NOTE: could be done more concisely with a for loop.
 def create_runall_script(exp_folderpath):
     fo_names = list_folders(exp_folderpath, recursive=False, use_relative_paths=True)
-    num_exps = len([n for n in fo_names if n.startswith('cfg') ])
+    # print fo_names
+    num_exps = len([n for n in fo_names if path_last_element(n).startswith('cfg') ])
 
     # creating the script.
     sc_lines = ['#!/bin/bash']
@@ -1137,23 +1240,69 @@ def create_runall_script(exp_folderpath):
 
     # creating the run all script.
     out_filepath = join_paths([exp_folderpath, 'run.sh'])
-    print out_filepath
+    # print out_filepath
+    write_textfile(out_filepath, sc_lines, with_newline=True)
+    st = os.stat(out_filepath)
+    exec_bits = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+    os.chmod(out_filepath, st.st_mode | exec_bits)
+
+def create_runall_script_with_parallelization(exp_folderpath):
+    fo_names = list_folders(exp_folderpath, recursive=False, use_relative_paths=True)
+    # print fo_names
+    num_exps = len([n for n in fo_names if path_last_element(n).startswith('cfg') ])
+
+    ind = ' ' * 4
+    # creating the script.
+    sc_lines = [
+        '#!/bin/bash',
+        'if [ "$#" -ne 0 ] && [ "$#" -ne 2 ]; then',
+        '%secho "usage: run.sh [worked_id num_workers]"' % ind,
+        '%sexit 1' % ind,
+        'fi',
+        'if [ $# -eq 2 ]; then',
+        '%sworker_id=$1' % ind,
+        '%snum_workers=$2' % ind,
+        'else',
+        '%sworker_id=0' % ind,
+        '%snum_workers=1' % ind,
+        'fi',
+        '',
+        'num_exps=%d' % num_exps,
+        'i=0',
+        'while [ $i -lt $num_exps ]; do',
+        '%sif [ $(( $i % $num_workers )) -eq $worker_id]; do' % ind,
+        '%s%s' % (ind * 2, join_paths([exp_folderpath, "cfg$i", 'run.sh']),
+        '%si=$(($i + 1))' % ind,
+        'done'
+    ]
+    # creating the run all script.
+    out_filepath = join_paths([exp_folderpath, 'run.sh'])
+    # print out_filepath
     write_textfile(out_filepath, sc_lines, with_newline=True)
     st = os.stat(out_filepath)
     exec_bits = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
     os.chmod(out_filepath, st.st_mode | exec_bits)
 
 # NOTE: not the perfect way of doing things, but it is a reasonable way for now.
-def create_experiment_folder(project_folderpath, main_relfilepath,
+# main_relfilepath is relative to the project folder path.
+# entry_folderpath is the place it changes to before executing.
+# if code and data folderpaths are provided, they are copied to the exp folder.
+# all paths are relative I think that that is what makes most sense.
+def create_experiment_folder(main_filepath,
         argnames, argvals_list, out_folderpath_argname, 
-        exps_folderpath, readme, expname=None):
+        exps_folderpath, readme, expname=None, 
+        # entry_folderpath=None, 
+        code_folderpath=None, 
+        # data_folderpath=None,
+        capture_output=False, profile_run=False):
     
     assert folder_exists(exps_folderpath)
     assert expname is None or (not path_exists(
         join_paths([exps_folderpath, expname])))
+    # assert folder_exists(project_folderpath) and file_exists(join_paths([
+    #     project_folderpath, main_relfilepath]))
     
-    assert folder_exists(project_folderpath) and file_exists(join_paths([
-        project_folderpath, main_relfilepath]))
+    # TODO: add asserts for the part of the model that matters.
 
     # create the main folder where things for the experiment will be.
     if expname is None:    
@@ -1161,12 +1310,37 @@ def create_experiment_folder(project_folderpath, main_relfilepath,
     ex_folderpath = join_paths([exps_folderpath, expname])
     create_folder(ex_folderpath)
 
-    # write the config for the experiment
+    # copy the code to the experiment folder.
+    if code_folderpath is not None:
+        code_foldername = path_last_element(code_folderpath)
+        dst_code_fo = join_paths([ex_folderpath, code_foldername])
+
+        copy_folder(code_folderpath, dst_code_fo, 
+            ignore_hidden_files=True, ignore_hidden_folders=True, 
+            ignore_file_exts=['.pyc'])
+
+        # change main_filepath to use that new code.
+        main_filepath = join_paths([ex_folderpath, main_filepath])
+
+    # NOTE: no data copying for now, because it does not make much 
+    # sense in most cases.
+    data_folderpath = None ### TODO: remove later.
+    # # copy the code to the experiment folder.    
+    # if data_folderpath is not None:
+    #     data_foldername = path_last_element(data_folderpath)
+    #     dst_data_fo = join_paths([ex_folderpath, data_foldername])
+
+    #     copy_folder(data_folderpath, dst_data_fo, 
+    #         ignore_hidden_files=True, ignore_hidden_folders=True)
+
+    # write the config for the experiment.
     write_jsonfile( 
         retrieve_values(locals(), [
-            'project_folderpath', 'main_relfilepath',
-            'argnames', 'argvals_list', 'out_folderpath_argname', 
-            'exps_folderpath', 'readme', 'expname']),
+        'main_filepath',
+        'argnames', 'argvals_list', 'out_folderpath_argname', 
+        'exps_folderpath', 'readme', 'expname',
+        'code_folderpath', 'data_folderpath',
+        'capture_output', 'profile_run']),
         join_paths([ex_folderpath, 'config.json']))
 
     # generate the executables for each configuration.
@@ -1179,18 +1353,69 @@ def create_experiment_folder(project_folderpath, main_relfilepath,
         # create the script
         argvals = list(vs)
         argvals.append(cfg_folderpath)
-        call_args = retrieve_values(locals(), [
-            'project_folderpath', 'main_relfilepath', 'argnames', 'argvals'])
-        script_filepath = join_paths([cfg_folderpath, 'run.sh'])
-        create_run_script(out_filepath=script_filepath, **call_args)
+        call_args = retrieve_values(locals(), 
+            ['argnames', 'argvals', 'main_filepath'])
 
-        # write a config file for each configuration.
+        call_args['script_filepath'] = join_paths([cfg_folderpath, 'run.sh'])
+        if capture_output:
+            call_args['output_filepath'] = join_paths(
+                [cfg_folderpath, 'output.txt'])
+        if profile_run:
+            call_args['profile_filepath'] = join_paths(
+                [cfg_folderpath, 'profile.txt'])
+        create_run_script(**call_args)
+
+        # write a config file for each configuration
         write_jsonfile(
             create_dict(argnames, argvals), 
             join_paths([cfg_folderpath, 'config.json']))
-    create_runall_script(ex_folderpath)
+    # create_runall_script(ex_folderpath)
+    create_runall_script_with_parallelization(ex_folderpath)
 
     return ex_folderpath
+
+# can only check for main file path after copying.
+
+# entryfolder path.
+# 
+
+def load_experiment_folder(exp_folderpath):
+    pass
+    # list_folders(exp_folderpath)
+
+# compress path? this is something that I can do conveniently.
+
+# run on the server with multiple gpus and multiple experiments.
+# easiest. split into multiple experiments.
+
+# there is also the question about launching things in parallel, and 
+# how can I go between Python and bash.
+
+# NOTE: some of these things will not account for recursion in directory copying,
+# not even I think that they should.
+
+# send email functionality, or notification functionality. 
+# sort of a report of progress made, how many need to be done more and stuff like 
+# that.
+
+# TODO: manipulation of the experiments to have precisely want I need.
+
+# do the make csv file function.
+
+### load all configs and stuff like that.
+# they should be ordered.
+# or also, return the names of the folders.
+# it is much simpler, I think.
+
+# stuff to deal with embeddings in pytorch.
+
+# connecting two computational graphs in tensorflow.
+
+
+# TODO: some functionality will have to change to reaccomodate
+# the fact that it may change slightly.
+
+### profiling
 
 # TODO: figure out the right code to have here.
 
@@ -1231,10 +1456,55 @@ def create_experiment_folder(project_folderpath, main_relfilepath,
 # top 10 plots for some of the most important ones.
 # 
 
+# need dynamic runs of the model, to make 
+
 # perhaps can switch things around.
 
+def create_project_folder(folderpath, project_name):
+    fn = lambda xs: join_paths([folderpath, project_name] + xs)
 
-   
+    create_folder( fn( [] ) )
+    # typical directories
+    create_folder( fn( [project_name] ) )
+    create_folder( fn( ["data"] ) )
+    create_folder( fn( ["experiments"] ) )    
+    create_folder( fn( ["notes"] ) )
+    create_folder( fn( ["temp"] ) )
+
+    create_file( fn( [project_name, "data.py"] ) )
+    create_file( fn( [project_name, "preprocess.py"] ) )
+    create_file( fn( [project_name, "model.py"] ) )    
+    create_file( fn( [project_name, "train.py"] ) )
+    create_file( fn( [project_name, "evaluate.py"] ) ) 
+    create_file( fn( [project_name, "main.py"] ) )
+    create_file( fn( [project_name, "experiment.py"] ) )
+    create_file( fn( [project_name, "analyze.py"] ) )
+
+# some tools for 
+# data.py da 
+# train.py tr
+# model.py mo
+# preprocess.py pr 
+# evaluate.py ev
+# plot.py pl
+# main.py ma
+# experiments.py ex
+# analyze an (maybe for extra things)
+### ---
+# notes
+# data
+# temp
+# experiments
+# analyses
+# code
+
+# get path
+
+# maybe even write something to the model. this could be interesting.
+
+# add stuff for feature extraction.
+
+
 
 ### TODO: upload to server should compress the files first and decompress them 
 # there.
@@ -1268,6 +1538,8 @@ def wrap_strings(s):
 # let us run all the experiments just for fun.
 
 # there is also the script for the experiment.
+
+# how to profile.
 
 
 # also needs a high level experiment to run all of them.
@@ -1442,6 +1714,8 @@ def run_on_cpu():
 # tensorflow manipulation? maybe. installation of pytorch in some servers.
 
 # call retrieve_values with locals()
+
+# massive profiles.
 
 
 # TODO:
@@ -2417,6 +2691,9 @@ def wait(x, units='s'):
 # may exist data_folderpath or something, but I would rather pass that 
 # somewhere else. also, maybe need to change to some folder.
 
+# TODO: probably do something to add requirements to the code. 
+# this would be something interesting.
+
 
 # run one of these folders on the server is actually quite interesting.
 # I just have to say run folder, but only every some experiment.
@@ -2582,6 +2859,8 @@ all_gpus = gtx970_gpus + gtx980_gpus + k40_gpus + titan_gpus
 
 # either all or a fraction.
 
+# working with path fragments and stuff like that.
+
 
 # commit on the structure.
 
@@ -2674,3 +2953,56 @@ all_gpus = gtx970_gpus + gtx980_gpus + k40_gpus + titan_gpus
 # TODO: can introduce some easy ways of testing the program? 
 # it is hard to do this in general. perhaps in some narrow domain specific way 
 # it is possible.
+
+# experiments with sub experiments.
+
+# it is better to run experiments from a single place, using the toolbox,
+# and the config. 
+# it seems annoying to have the config and the other ones.
+# can lead to inconsistencies.
+
+# allow for sub experiments.
+
+# TODO: add support for nested experiments.
+# I think that this is possible simply by having the right thing.
+# these processes can be simple.
+
+# example, a config that runs some number of other configs for some other 
+# experiment.
+
+# do things for the exploration of csv files. 
+# this is going to be very handy to explore the results.
+
+# easy way of fixing some of the arguments.
+
+# NOTE: some of the stuff for connecting graphs in tensorflow.
+
+# TODO: once it grows to a certain range, it will be useful to create toolbox 
+# files mimicking some of the evaluation metrics that we looked at.
+# this makes sense only after reaching a certain number of things to 
+# do, or having libraries that are not guaranteed to exist in the model.
+
+# questions about the model.
+
+# stuff to manipulate existing experiments folders.
+# working in terms of relative paths is crucial for this functionality.
+# for example, generating scripts for running the code in a certain way
+
+# another possibility would be to 
+
+# add functionality for relative directory manipulation.
+
+# TODO: in some cases, it is possible to output things to terminal too.
+# this means adding some tee to the model.
+
+# to get the full encapsulation, I will need to do something else.
+# this is going to be interesting.
+
+# decrease by when and how much. question about the different part of the 
+# model. this is an interesting question.
+
+# add dates to the experiments, or at least make it easy to add dates.
+# this can be done in main_draft.
+
+# stuff for handling more complicated data, such as data bases and other type 
+# of data.
