@@ -1094,10 +1094,18 @@ def set_random_seed(x=None):
     np.random.seed(x)
     random.seed(x)
 
-### TODO: not finished
 def uniform_sample_product(lst_lst_vals, num_samples):
+    n = len(lst_lst_vals)
+    components = []
+    for i, lst in enumerate(lst_lst_vals):
+        idxs = np.random.randint(len(lst), size=num_samples)
+        components.append( [lst[j] for j in idxs] )
+
+    samples = []
     for i in xrange(num_samples):
-        pass
+        samples.append([ components[j][i] for j in xrange(n) ])
+    return samples
+
 
 ### TODO: not finished
 def sample(xs, num_samples, with_replacement=True, p=None):
@@ -1181,11 +1189,11 @@ def get_valid_name(folderpath, prefix):
     return name
 
 # generating the call lines for a code to main.
-def generate_script_call_lines(main_filepath,
+def generate_call_lines(main_filepath,
         argnames, argvals, 
         output_filepath=None, profile_filepath=None):
 
-    sc_lines = ['python \\'] 
+    sc_lines = ['python -u \\'] 
     # add the profiling instruction.
     if profile_filepath is not None:
         sc_lines += ['-m cProfile -o %s \\' % profile_filepath]
@@ -1214,7 +1222,7 @@ def create_run_script(main_filepath,
     # if entry_folderpath is not None:
     #     sc_lines += ['cd %s' % entry_folderpath]
     # call the main function.
-    sc_lines += generate_script_call_lines(**retrieve_values(locals(), 
+    sc_lines += generate_call_lines(**retrieve_values(locals(), 
         ['main_filepath', 'argnames', 'argvals', 
         'output_filepath', 'profile_filepath'])) 
     # change back to the previous folder if I change to some other folder.
@@ -1387,8 +1395,69 @@ def create_experiment_folder(main_filepath,
 # probably, also generate a clean script.
 # but it should not rely on it, in any case.
 
-def load_experiment_folder(exp_folderpath):
-    pass
+# maybe just return the dictionaries.
+
+def map_experiment_folder(exp_folderpath, fn):
+    fo_paths = list_folders(exp_folderpath, recursive=False, use_relative_paths=False)
+    num_exps = len([p for p in fo_paths if path_last_element(p).startswith('cfg') ])
+
+    ps = []
+    rs = []
+    for i in xrange(num_exps):
+        p = join_paths([exp_folderpath, 'cfg%d' % i])
+        rs.append( fn(p) )
+        ps.append( p )
+    return (ps, rs)
+
+def load_experiment_folder(exp_folderpath, json_filenames, 
+    abort_if_notexists=True, only_load_if_all_exist=False):
+    def _fn(cfg_path):
+        ds = []
+        for name in json_filenames:
+            p = join_paths([cfg_path, name])
+
+            if (not abort_if_notexists) and (not file_exists(p)):
+                d = None
+            # if abort if it does not exist, it is going to fail reading the file.
+            else:
+                d = read_jsonfile( p )
+            ds.append( d )
+        return ds
+    
+    (ps, rs) = map_experiment_folder(exp_folderpath, _fn)
+    
+    # filter only the ones that loaded successfully all files.
+    if only_load_if_all_exist:
+        proc_ps = []
+        proc_rs = []
+        for i in xrange( len(ps) ):
+            if all( [x is not None for x in rs[i] ] ):
+                proc_ps.append( ps[i] )
+                proc_rs.append( rs[i] )
+        (ps, rs) = (proc_ps, proc_rs)
+
+    return (ps, rs)
+
+# if does not exist, I think that it is useful to have it 
+
+# return only the dictionaries or something like that.
+
+# it is more like a map over the experiments folder.
+
+
+
+
+# callibration for running things in the cpu.
+
+
+
+# if there are multiple things to be loaded, it is best to just do one.
+# or something like that.
+
+# it would be nice if merging the keys would preserve some form of 
+# ordering in the models.
+
+
     # list_folders(exp_folderpath)
 
 # compress path? this is something that I can do conveniently.
@@ -3014,3 +3083,21 @@ all_gpus = gtx970_gpus + gtx980_gpus + k40_gpus + titan_gpus
 
 # stuff for handling more complicated data, such as data bases and other type 
 # of data.
+
+# it may be worth to introduce information about some computational resources.
+
+# some thing for, if a certain file exists, ignore, or somethigng like that.
+
+# TODO: add the download of only files of a certain type.'
+
+# add ignore lists to file transfer and what not. 
+# it is better to compress before transfering, probably.
+
+# look into rsync. this is something that might be interesting.
+
+# TODO: add the information about the model 
+
+# using stuff in slurm, this is going to be important.
+
+# there is definitely the possibility of doing this more seriously for using 
+# slurm commands. the question is how far can I take this.
