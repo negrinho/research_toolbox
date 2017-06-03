@@ -809,7 +809,7 @@ class GridPlot:
 # TODO: log plots vs non log plots. more properties to change.
 # TODO: updatable figure.
 
-
+# TODO: add histogram plo, and stuff like that.
 
 
 ### data to latex
@@ -969,6 +969,16 @@ class MultRateSchedule:
 
     def get_rate(self):
         return self.cur_rate
+
+class ConstantRateSchedule:
+    def __init__(self, rate):
+        self.rate = rate
+    
+    def update(self, v):
+        pass
+    
+    def get_rate(self):
+        return self.rate
 
 class PiecewiseSchedule:
     def __init__(self, schedules, durations):
