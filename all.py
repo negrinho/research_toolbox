@@ -1387,16 +1387,6 @@ def create_experiment_folder(main_filepath,
 
     return ex_folderpath
 
-# can only check for main file path after copying.
-
-# entryfolder path.
-# 
-
-# probably, also generate a clean script.
-# but it should not rely on it, in any case.
-
-# maybe just return the dictionaries.
-
 def map_experiment_folder(exp_folderpath, fn):
     fo_paths = list_folders(exp_folderpath, recursive=False, use_relative_paths=False)
     num_exps = len([p for p in fo_paths if path_last_element(p).startswith('cfg') ])
@@ -1438,12 +1428,34 @@ def load_experiment_folder(exp_folderpath, json_filenames,
 
     return (ps, rs)
 
-# if does not exist, I think that it is useful to have it 
 
-# return only the dictionaries or something like that.
+### project manipulation
+def create_project_folder(folderpath, project_name):
+    fn = lambda xs: join_paths([folderpath, project_name] + xs)
 
-# it is more like a map over the experiments folder.
+    create_folder( fn( [] ) )
+    # typical directories
+    create_folder( fn( [project_name] ) )
+    create_folder( fn( ["data"] ) )
+    create_folder( fn( ["experiments"] ) )    
+    create_folder( fn( ["notes"] ) )
+    create_folder( fn( ["temp"] ) )
 
+    # code files (in order): data, preprocessing, model definition, model training, 
+    # model evaluation, main to generate the results with different relevant 
+    # parameters, setting up different experiments, analyze the results and 
+    # generate plots and tables.
+    create_file( fn( [project_name, "data.py"] ) )
+    create_file( fn( [project_name, "preprocess.py"] ) )
+    create_file( fn( [project_name, "model.py"] ) )    
+    create_file( fn( [project_name, "train.py"] ) )
+    create_file( fn( [project_name, "evaluate.py"] ) ) 
+    create_file( fn( [project_name, "main.py"] ) )
+    create_file( fn( [project_name, "experiment.py"] ) )
+    create_file( fn( [project_name, "analyze.py"] ) )
+
+def wrap_strings(s):
+    return ', '.join(['\'' + a.strip() + '\'' for a in s.split(',')])
 
 
 
@@ -1537,25 +1549,7 @@ def load_experiment_folder(exp_folderpath, json_filenames,
 
 # perhaps can switch things around.
 
-def create_project_folder(folderpath, project_name):
-    fn = lambda xs: join_paths([folderpath, project_name] + xs)
 
-    create_folder( fn( [] ) )
-    # typical directories
-    create_folder( fn( [project_name] ) )
-    create_folder( fn( ["data"] ) )
-    create_folder( fn( ["experiments"] ) )    
-    create_folder( fn( ["notes"] ) )
-    create_folder( fn( ["temp"] ) )
-
-    create_file( fn( [project_name, "data.py"] ) )
-    create_file( fn( [project_name, "preprocess.py"] ) )
-    create_file( fn( [project_name, "model.py"] ) )    
-    create_file( fn( [project_name, "train.py"] ) )
-    create_file( fn( [project_name, "evaluate.py"] ) ) 
-    create_file( fn( [project_name, "main.py"] ) )
-    create_file( fn( [project_name, "experiment.py"] ) )
-    create_file( fn( [project_name, "analyze.py"] ) )
 
 # some tools for 
 # data.py da 
@@ -1589,8 +1583,7 @@ def create_project_folder(folderpath, project_name):
 # may comment out if not needed.
 
 # for boilerplate editing
-def wrap_strings(s):
-    return ', '.join(['\'' + a.strip() + '\'' for a in s.split(',')])
+
 
 
 # add these. more explicitly.
@@ -1651,7 +1644,6 @@ def wrap_strings(s):
 
 # some number in parallel
 
-# 
 
 # that can be part of the functionality of the research toolbox.
 
@@ -1659,9 +1651,6 @@ def wrap_strings(s):
 
 # this model kind of suggests to included more information about the script 
 # that we want to run and use it later.
-
-
-# ./experiments/exp0/cfgs/cfg0/run.sh
 
 ## NOTE: can add things in such a way that it is possible to run it
 # on the same folder. in the sense that it is going to change folders
@@ -1673,8 +1662,6 @@ def wrap_strings(s):
 
 # a lot of experiments. I will try just to use some of the 
 # experiments.
-
-# TODO: 
 
 # running a lot of different configurations. 
 # there are questions about the different models.
@@ -1716,18 +1703,6 @@ def wrap_strings(s):
 ### it means that I can run the code while being indexed to the part of the 
 # model that actually matters.
 
-
-### ignore_hidden_files and folders.
-
-# perhaps for running, it is possible to get things to work.
-
-# questions about the model. 
-
-# there are options that upon copying may be set.
-
-# generation of these results.
-
-# I'm still deciding how capturing the output should be done.
 
 # NOTE: this may have a lot more options about 
 def run_experiment_folder(folderpath):
@@ -1920,7 +1895,6 @@ def wait(x, units='s'):
 # all the s(something commands.)
 # for getting information about the server.
 
-# some integration with scared is necessary.
 
 # do some well defined units;
 # have some well defined server names.
@@ -3101,3 +3075,9 @@ all_gpus = gtx970_gpus + gtx980_gpus + k40_gpus + titan_gpus
 
 # there is definitely the possibility of doing this more seriously for using 
 # slurm commands. the question is how far can I take this.
+
+# tools for taking a set of dictionaries, and sorted them according to 
+# some subset of the keys. this can be done easily. 
+# manipulating lists of dictionaries should be easy.
+
+# TODO: all the sorting elements must exist.
