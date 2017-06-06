@@ -106,6 +106,7 @@ def uncollapse_nested_dict(d, sep='.'):
 ### simple io
 import json
 import sys
+import pickle
 
 def read_textfile(fpath, strip=True):
     with open(fpath, 'r') as f:
@@ -147,6 +148,14 @@ def read_jsonfile(fpath):
 def write_jsonfile(d, fpath):
     with open(fpath, 'w') as f:
         json.dump(d, f, indent=4)
+
+def read_picklefile(fpath):
+    with open(fpath, 'rb') as f:
+        return pickle.load(f)
+
+def write_picklefile(x, fpath):
+    with open(fpath, 'wb') as f:
+        pickle.dump(x, f)
 
 # check if files are flushed automatically upon termination, or there is 
 # something else that needs to be done. or maybe have a flush flag or something.
@@ -700,6 +709,9 @@ import subprocess
 import paramiko
 import getpass
 
+def read_password():
+    return getpass.getpass()
+
 def run_on_server(servername, bash_command, username=None, password=None,
         folderpath=None, wait_for_output=True, prompt_for_password=False):
     """SSH into a machine and runs a bash command there. Can specify a folder 
@@ -738,6 +750,37 @@ def run_on_server(servername, bash_command, username=None, password=None,
 
     sess.close()
     return stdout_lines, stderr_lines
+
+# NOTE: this part here can be improved.
+# NOTE: for now, this is just going to use a single gpu for each time. 
+
+### running jobs on the available computational nodes.
+def get_lithium_nodes():
+    return {'gtx970' : ["dual-970-0-%d" % i for i in range(0, 13) ], 
+            'gtx980' : ["quad-980-0-%d" % i for i in [0, 1, 2] ],
+            'k40' : ["quad-k40-0-0", "dual-k40-0-1", "dual-k40-0-2"],
+            'titan' : ["quad-titan-0-0"]
+            }
+
+def run_on_lithium(cmd, gpu_id, password=None
+
+
+        servername, bash_command, username=None, password=None,
+        folderpath=None, wait_for_output=True, prompt_for_password=False):
+    
+
+
+    all_gpus = gtx970_gpus + gtx980_gpus + k40_gpus + titan_gpus
+
+
+
+def run_on_matrix():
+    pass
+
+def run_on_bridges():
+    raise NotImplementedError
+
+
 
 ### plotting 
 
@@ -1446,7 +1489,6 @@ def load_experiment_folder(exp_folderpath, json_filenames,
 
     return (ps, rs)
 
-
 ### project manipulation
 def create_project_folder(folderpath, project_name):
     fn = lambda xs: join_paths([folderpath, project_name] + xs)
@@ -1472,9 +1514,21 @@ def create_project_folder(folderpath, project_name):
     create_file( fn( [project_name, "experiment.py"] ) )
     create_file( fn( [project_name, "analyze.py"] ) )
 
+
+### string manipulation
 def wrap_strings(s):
     return ', '.join(['\'' + a.strip() + '\'' for a in s.split(',')])
 
+
+
+
+
+
+
+
+# it is very useful to manage the output in such a way that it is easy 
+# to send things to a file, as it is easy to send them to the terminal.
+# 
 
 
 # callibration for running things in the cpu.
@@ -2467,11 +2521,6 @@ def wait(x, units='s'):
 # all things that I can't do, will be done in way  
 
 
-# be consistent in the use of path. like folder_path, file_path, path
-# you can have both. 
-
-# src and dst seem reasoanble.
-
 # using the correct definition is important. it will make things more consistent.
 
 # even for simpler stuff where from the definition it is clear what is the 
@@ -2483,8 +2532,6 @@ def wait(x, units='s'):
 # or always do it through lists to the extent possible.
 
 # use full names in the functions to the extent possible
-
-# ComandLineArguments()
 
 # use something really simple, in cases where it is very clear.
 
@@ -2805,11 +2852,7 @@ def wait(x, units='s'):
 
 # maybe wrap in a function.
 # gpu machines in lithium.
-gtx970_gpus = ["dual-970-0-%d" % i for i in xrange(13)] 
-gtx980_gpus = ["quad-980-0-%d" % i for i in xrange(3)]
-k40_gpus = ["quad-k40-0-0", "dual-k40-0-1", "dual-k40-0-2"]
-titan_gpus = ["quad-titan-0-0"]
-all_gpus = gtx970_gpus + gtx980_gpus + k40_gpus + titan_gpus
+
 
 # copying the code is a good idea for now.
 
@@ -3146,8 +3189,93 @@ all_gpus = gtx970_gpus + gtx980_gpus + k40_gpus + titan_gpus
 # there is somemore additional processing of results that would be interesting.
 
 
+# add more functionality to streamline profiling. it should be easy to extract
+# relevant information. look at the pstats objects.
 
+# clearly, the question of running multiple jobs on lithium is relevant.
+# look into this. use a few gpu machines.
 
+# add scripts for dealing with slurm and the other one.
+# interface by having simple interfaces that generate the scripts.
+# such it is simply doing srun on the script.
 
+# TiKz figures. easy to manipulate. for simple cases. e.g., block diagrams 
+# or trees. getting some consistency on the line width would be important.
+# how can I do a more consistent job than the other one.
 
+# do some more of this for some simple bash scripts.
 
+# TODO: have some way of representing attention over the program given 
+# the error message and perhaps some more information. this is going to be 
+# important. the other question is instrumentation. 
+# if I have a small dataset, keeping the field names with it is not so bad.
+
+# also, if the dataset is a sequence of time events, that is kind of trickier
+# to collect. or is it? maybe not.
+
+# datasets collected as soon as possible, or collected incrementally.
+# define fields and keep adding to them. serialization through json.
+# loading through json.
+# or perhaps csv. depends on the creation of a new file.
+
+# depends on the 
+
+# take a script and make it some other type of script. example, 
+# from running locally to running on the server.
+
+# make it easy to generate custom scripts to the 
+
+# do the experiments in both the cluster and here.
+
+# have some utility scripts that can be called from the console.
+# also, perhaps, some way of easily creating some files and iterating over files.
+# it is important to work easily with them
+
+# module load singularity 
+#   exec centos7.img cat /singularity
+
+# there are only a few that 
+
+# it is easy to preappend with what we have done.
+
+# something for wrapping the experiments, I guess.
+
+# def make_slurm_with_tf(exp_folderpath):
+#     "module load singularity"
+#     "singularity run %s" % exp_folderpath
+
+# problems defining some of these scripts. version is too 
+
+# there is probably some way of redirecting output.
+
+# to run scripts that input, it is 
+
+# generating easily the scripts for running on the machine. do not worry about 
+# having too much stuff now.
+
+# note, the parallel run script may not work there in the serverjk:w
+
+# TODO: I will need some form of managing experiments across projects.jk:w
+
+# handling the experiments some how. this would be possible easily.
+
+# easy to send things to server. 
+# should only take a few minutes.
+
+# make a script to install some of these things easily.
+# this will make setting up easier.
+
+# sort of incremental contruction of the dictionary which is constant
+# pushed to disk
+# write to pickle file.
+
+# add a command to call bash commands.
+# this is going to make it easier getting access to some of information 
+# from the command line.
+
+# write a lot of reentrant code. make every cycle count.
+
+# set up the repos; run more experiments for beam_learn; do more stuff.
+
+# do different commands for running in different servers there.
+# it should be possible to run a command directly after starting a session there.
