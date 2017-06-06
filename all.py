@@ -740,7 +740,15 @@ def run_on_server(servername, bash_command, username=None, password=None,
     return stdout_lines, stderr_lines
 
 ### plotting 
-import matplotlib.pyplot as plt 
+
+# in the case of using the library in the server, this may fail.
+try:
+    import matplotlib.pyplot as plt 
+except ImportError:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
 
 # TODO: edit with retrieve_vars
 class LinePlot:
@@ -3091,3 +3099,55 @@ all_gpus = gtx970_gpus + gtx980_gpus + k40_gpus + titan_gpus
 # manipulating lists of dictionaries should be easy.
 
 # TODO: all the sorting elements must exist.
+
+# it would be interesting to have some form of interrupts that allow a 
+# process to stop, or to call a function with some time limit, but 
+# to terminate it if necessary.
+
+# the important thing is that there are multiple models that can be used.
+# for example, it can be possible to try different models and check that it is 
+# going to work in certainn way.
+
+# make  it easy to run some of the search algorithms in parallel or something 
+# like that. what can be done? it is important to set up a database or 
+# have a central thread that takes care of this. interprocess communication
+# to do this. very simple code.
+
+# there is also stuff to do the analysis of the model.
+
+# handling different data types very easily. this is going to be something 
+# interesting.
+
+# the main components are data and model. add some functionality do 
+# deal wtih both of them.
+
+# abide by some interface where it possible to pass some logging information
+# using some consistent interface to the logging functionality, and just pass
+# that around. 
+# that would be important for getting things to work properly
+
+## TODO: perhaps I can add information about how to make this work. 
+# 
+
+# important for visualization of mistakes of a model. how to inspect the mistakes?
+# perhaps write a json, or just write some form of function that takes
+# some performance metric, and write all examples and predictions for 
+# visualization.
+
+# add a condition to test if running on the server or not. this 
+
+# check if running on the server or not.
+
+# maybe the best way of doing the import of matplotlib is to do it, is to do a 
+# try and raise.
+
+# TODO: tools for checking that all the experiments are complete, and perhaps 
+# for removing the ones that are not complete.
+# there is somemore additional processing of results that would be interesting.
+
+
+
+
+
+
+
