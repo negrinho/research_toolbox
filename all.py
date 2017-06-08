@@ -157,6 +157,28 @@ def write_picklefile(x, fpath):
     with open(fpath, 'wb') as f:
         pickle.dump(x, f)
 
+# NOTE: this function can use some existing functionality from python to 
+# make my life easier. I don't want fields manually. 
+# perhaps easier when supported in some cases.
+def read_csvfile(fpath, sep=',', has_header=True):
+    raise NotImplementedError
+
+# TODO: there is also probably some functionality for this.
+def write_csvfile(ds, fpath, sep=',',
+        write_header=True, abort_if_different_keys=True):
+
+    ks = tb.key_union(ds)
+    assert (not abort_if_different_keys) or len( tb.key_intersection(ds) ) == len(ks)
+
+    lines = []
+    if write_header:
+        lines.append( sep.join(ks) )
+    
+    for d in ds:
+        lines.append( sep.join([str(d[k]) if k in d else '' for k in ks]) )
+
+    tb.write_textfile(fpath, lines)
+
 # check if files are flushed automatically upon termination, or there is 
 # something else that needs to be done. or maybe have a flush flag or something.
 def capture_output(f, capture_stdout=True, capture_stderr=True):
@@ -366,6 +388,7 @@ def convert_between_time_units(x, src_units='s', dst_units='h'):
     d['w'] = 7.0 * d['d']
     return (x * d[src_units]) / d[dst_units]
 
+# TODO: do not just return a string representation, return the numbers.
 def now(omit_date=False, omit_time=False, time_before_date=False):
     assert (not omit_time) or (not omit_date)
 
@@ -434,6 +457,8 @@ def iter_ortho_single(lst_lst_vals, ref_idxs, idx_it, ref_first=True):
 ### logging
 import time
 import os
+
+### TODO: add calendar. or clock. or both. check formatting for both.
 
 class TimeTracker:
     def __init__(self):
@@ -551,6 +576,8 @@ class SummaryDict:
         
         self._check_consistency()
     
+    ### NOTE: I don't think that read makes sense anymore because you 
+    # can keep think as a json file or something else.
     def write(self, fpath):
         write_jsonfile(self.d, fpath)
     
@@ -615,14 +642,39 @@ def memory_free(units='mb'):
 
 # TODO: needs some error checking in case of no gpus. needs a try catch block.
 def gpus_total():
-    return len(subprocess.check_output(['nvidia-smi', '-L']).strip().split())
+    try:
+        n = len(subprocess.check_output(['nvidia-smi', '-L']).strip().split('\n'))
+    except OSError:
+        n = 0
+    return n
 
 def gpus_free():
     return len(gpus_free_ids())
 
+# NOTE: this is not just a matter about gpu utilization, it is also about 
+# memory utilization.
+# TODO: check if this handles memory appropriately.
+# TODO: chec 
 def gpus_free_ids():
-    return subprocess.check_output(['nvidia-smi' '--query-gpu=utilization.gpu', 
-        '--format=csv,noheader'])
+    try:
+        out = subprocess.check_output(['nvidia-smi', '--query-gpu=utilization.gpu', 
+            '--format=csv,noheader'])
+        perc_util = [float(x.split()[0]) for x in out.strip().split('\n')]
+
+        ids = []
+        for i, x in enumerate(perc_util):
+            # NOTE: this is arbitrary for now. maybe a different threshold for 
+            # utilization makes sense. maybe it is fine as long as it is not 
+            # fully utilized.
+            if x < 0.1:
+                ids.append(i)
+    
+        return ids
+
+    except OSError:
+        ids = []
+    
+    return ids
 
 def gpus_set_visible(ids):
     n = gpus_total()
@@ -636,6 +688,8 @@ import os
 def remote_path(username, servername, path):
     return "%s@%s:%s" % (username, servername, path)
 
+# NOTE: this may complain. perhaps pass the password? this would help.
+# check if there are things missing.
 def download_from_server(username, servername, src_path, dst_path, recursive=False):
     if recursive:
         subprocess.call(['scp', '-r', 
@@ -659,6 +713,9 @@ def upload_to_server(username, servername, src_path, dst_path, recursive=False):
 # TODO: the recursive functionality is not implemented. check if it is correct.
 # needs additional checking for dst_path. this is not correct in general.
 def download_from_url(url, dst_path, recursive=False):
+    if recursive:
+        raise NotImplementedError
+
     subprocess.call(['wget', url])
     filename = url.split('/')[-1]
     os.rename(filename, dst_path)
@@ -694,6 +751,9 @@ def run_guarded_experiment(maxmemory_mbs, maxtime_secs, experiment_fn, **kwargs)
             except psutil.NoSuchProcess:
                 pass
 
+# TODO: probably this works better with keyword args.
+# NOTE: also, probably the way this is done is not the best way because how things 
+# work.
 def run_parallel_experiment(experiment_fn, iter_args):            
     ps = []                                 
     for args in iter_args:
@@ -709,10 +769,10 @@ import subprocess
 import paramiko
 import getpass
 
-def read_password():
+def get_password():
     return getpass.getpass()
 
-def run_on_server(servername, bash_command, username=None, password=None,
+def run_on_server(bash_command, servername, username=None, password=None,
         folderpath=None, wait_for_output=True, prompt_for_password=False):
     """SSH into a machine and runs a bash command there. Can specify a folder 
     to change directory into after logging in.
@@ -735,8 +795,8 @@ def run_on_server(servername, bash_command, username=None, password=None,
 
     sess = paramiko.SSHClient()
     sess.load_system_host_keys()
-# ssh.set_missing_host_key_policy(paramiko.WarningPolicy())
-# ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    #ssh.set_missing_host_key_policy(paramiko.WarningPolicy())
+    sess.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     sess.connect(servername, username=username, password=password)
     stdin, stdout, stderr = sess.exec_command(bash_command)
     
@@ -754,7 +814,20 @@ def run_on_server(servername, bash_command, username=None, password=None,
 # NOTE: this part here can be improved.
 # NOTE: for now, this is just going to use a single gpu for each time. 
 
+# doing double ssh to 
+
+# TODO: check that you get the right prompt rather than something else.
+# NOTE: certain things may be troublesome because of escaping the commands 
+# correctly and stuff like that. I don't think that that would be 
+# handled by itself.
+# having that into account in the command passed may be a little troublesome.
+
+# I need to handle this some how.
+# there are cases where I can just run ssh directly.
+
 ### running jobs on the available computational nodes.
+import inspect
+
 def get_lithium_nodes():
     return {'gtx970' : ["dual-970-0-%d" % i for i in range(0, 13) ], 
             'gtx980' : ["quad-980-0-%d" % i for i in [0, 1, 2] ],
@@ -762,29 +835,357 @@ def get_lithium_nodes():
             'titan' : ["quad-titan-0-0"]
             }
 
-def run_on_lithium(cmd, gpu_id, password=None
+# it is better to pass a user name.
 
+# NOTE: prompting for password does not make much sense.
+# gpu_memory_total
+# gpu_memory_free
+### TODO: add something to query how much memory is it 
+# being used there.
 
-        servername, bash_command, username=None, password=None,
-        folderpath=None, wait_for_output=True, prompt_for_password=False):
+# memory_total
+# memory_free
+
+# TODO: perhaps it is possible to run the model in such a way that makes 
+# it easy to wait for the end of the process, and then just gets the results.
+# for example, it puts it on the server, sends the command, and waits for 
+# it to terminate. gets the data everytime.
+
+# it has to connect for this...
+
+# TODO: the question is which are the cpus that are free. 
+# NOTE: it is a good idea to think about one ssh call as being one remote 
+# function call.
+
+# in the generation of calls lines, it is a good idea to see other aspects.
+
+# also return the gpus that are free.
+
+# TODO: should also be easy to check 
+
+# it ssh for this.
+
+# ignore the GPUs that are down.
+# add functionality to use server if resources are available.
+
+# what if something does not succeed, it still gives back something relevant.
+
+## TODO: get to the point were I can just push something to the server 
+# and it would work.
+
+# TODO: perhaps it is possible to get things to stop if one of the 
+# them is not up.
+# I'm sure that this is going to fail multiple times.
+
+# NOTE: this may need the toolbox there, otherwise, it is a pain.
+def get_lithium_resource_availability(servername, username, password=None,
+        abort_if_any_node_unavailable=True):
+
+    # prompting for password if asked about.
+    if password == None:
+        password = getpass.getpass()
+
+    # script to define the functions to get the available resources.
+    cmd_lines = ['import psutil', 'import subprocess', 'import numpy as np', '']
+    fns = [ convert_between_byte_units,
+            cpus_total, memory_total, gpus_total, 
+            cpus_free, memory_free,  gpus_free, gpus_free_ids]
     
+    for fn in fns:
+        cmd_lines += [line.rstrip('\n') 
+            for line in inspect.getsourcelines(fn)[0] ]
+        cmd_lines.append('')
+
+    cmd_lines += ['print \'%d;%.2f;%d;%d;%.2f;%d;%s\' % ('
+               'cpus_total(), memory_total(), gpus_total(), '
+               'cpus_free(), memory_free(), gpus_free(), '
+               '\' \'.join( map(str, gpus_free_ids()) ) )']
+    py_cmd = "\n".join(cmd_lines)
+
+    ks = ['cpus_total', 'mem_mbs_total', 'gpus_total', 
+            'cpus_free', 'mem_mbs_free', 'gpus_free', 'free_gpu_ids']
+
+    # run the command to query the information.
+    nodes = get_lithium_nodes()
+    write_script_cmd = 'echo \"%s\" > avail_resources.py' % py_cmd
+    run_on_server(write_script_cmd, servername, username, password)
+
+    # get it for each of the models
+    resources = {}
+    for gpu_type in nodes:
+        resources[gpu_type] = []
+        for host in nodes[gpu_type]:
+            cmd = 'ssh -T %s python avail_resources.py' % host
+            stdout_lines, stderr_lines = run_on_server(
+                cmd, servername, username, password)
+
+            # print stdout_lines, stderr_lines
+            # if it did not fail.
+            if len(stdout_lines) == 1:
+                # extract the actual values from the command line.
+                str_vs = stdout_lines[0].strip().split(';')
+                assert len(str_vs) == 7
+                print str_vs
+                vs = [ fn( str_vs[i] ) 
+                    for (i, fn) in enumerate([int, float, int] * 2 + [str]) ]
+                vs[-1] = [int(x) for x in vs[-1].split(' ') if x != '']
+
+                d = create_dict(ks, vs)
+                resources[gpu_type].append(d)
+            else:
+                assert not abort_if_any_node_unavailable
+                resources[gpu_type].append(None)
+
+    delete_script_cmd = 'rm avail_resources.py'
+    run_on_server(delete_script_cmd, servername, username, password)
+    return resources
 
 
-    all_gpus = gtx970_gpus + gtx980_gpus + k40_gpus + titan_gpus
 
 
 
-def run_on_matrix():
+# ideally, you just want to run things once.
+# also, perhaps, I would like to just point at the folder and have it work.
+
+
+
+### this has to be done better.
+
+# read prompt for password_prompt
+
+
+    # not quit because it is going to be one for each computer.
+
+    # dictionary has to match there.
+
+
+# I wonder if this works or not.
+
+# it would be interesting to check if I can 
+
+
+# get_resource_availability_on_lithium
+
+
+# for the ones with a scheduler, it should be possible to do this easily without
+# having to worry about querying for the resources.
+
+
+# I will need to wrap this as a string. I need to be careful about it.
+
+    # write the script once, and then remove it. be careful about this.
+
+    # ssh -t negrinho@
+    # "negrinho@128.2.211.186"
+
+    # try to do it for a single one, and then run on it.
+    # do not have my username in it.
+    
+    # go there, and print something 
+    # there should exist code to distribute 
+    # things easily.
+
+    # NOTE: even just doing something like doing 
+    # ssh once and getting all the data may be interesting
+    # can I do that.
+
+    # it is better if I can do it directly.
+
+    # the laucnh script for a task needs to be easy.
+    
+    # just the creation the com
     pass
 
-def run_on_bridges():
-    raise NotImplementedError
+# NOTE: to get the available processors and gpus, it is necessary to be 
+# careful about memory tool. I think 
+
+# NOTE: may require a python multi line command. otherwise, just put in some 
+# script and then erase it.
+
+# NOTE: on lithium I have to write nohup things.
+# running on lithium is kind of tricky. more sshs.
+# NOTE: that a command is always to be ran on a specific node.
+# I want to get information about this node. what is the problem, 
+# not for every time
+
+# TODO: develop functions to look at the most recent experiments, or the files
+# that were change most recently.
+
+# also stuff to look into the toolbox.
+# the plug and play to make the experience 
+
+
+def run_on_lithium(bash_command, servername, username, password=None, 
+        num_cpus=1, num_gpus=0, folderpath=None, 
+        wait_for_output=True, require_gpu_types=None, require_nodes=None,
+        run_on_head_node=False):
+
+        folderpath=None, wait_for_output=True, prompt_for_password=False
+
+    if password == None and prompt_for_password:
+        password = getpass.getpass()
+
+
+# there is stuff that I need to append. for example, a lot of these are simple 
+# to run. there is the syncing question of folders, which should be simple. 
+# it is just a matter of  
+
+    # depending on the requirements for running this task, different machines 
+    # will be available. if you ask too many requirement, you may not have 
+    # any available machines.
+
+# I just don't want to do the logic to access it. also, perhaps create some file
+# that I can reuse.
+
+    
+    
+    ### do this later.
+
+
+
+# # run_on_server(servername, bash_command, username=None, password=None,
+# #         folderpath=None, wait_for_output=True, prompt_for_password=False)
+
+
+
+# # # probably needs to exit if there are no available cpus.
+
+# # # needs to figure out a gpu.
+# # # it is more annoying.
+
+# # I think that experiments should always be 
+
+# #     script = ["",
+#             # ]
+
+#     run_on_server()
+
+    # for requiring some gpu type, this is going to be a lot simpler.
+
+    # TODO: this is mostly a matter of setting the right part of the model.
+    # think about how to return the model.
+
+    # basically, can move to one of these folders, put the script there, 
+    # run it, and delete it.
+
+# this is not true.
+
+# submit a job there.
+
+# NOTE: for running on matrix, there is the question about 
+# this is for parallel parts of the model.
+
+# whether to run on headnode
+
+# can run multiple of these 
+
+# def run_on_matrix(bash_command, servername, username, password=None, 
+#         num_cpus=1, num_gpus=0, mem_budget=8.0, time_budget=60.0,
+#         mem_units='gb', time_units='m', 
+#         folderpath=None, wait_for_output=True, 
+#         require_gpu_type=None, run_on_head_node=False):
+
+#     if require_gpu_type is not None: 
+#         raise NotImplementedError
+
+#     # prompts for password if it has not been provided
+#     if password == None:
+#         password = getpass.getpass()
+
+#     ## basically, needs slurm instructions.
+
+#     'sbatch --cpus-per-task=%d --gres=gpu:%d --mem=%d' 
+#     # matrix cmd has to have the job there.
+
+#     run_on_server(matrix_cmd, **retrieve_values(locals(), 
+#         ['servername', 'username', 'password', 'folderpath', 'wait_for_output'])
+
+
+# # it depends if it is to run on the node or not.
+
+# ####
+
+#     if username != None: 
+#         host = username + "@" + servername 
+#     else:
+#         host = servername
+    
+#     if password == None and prompt_for_password:
+#         password = getpass.getpass()
+
+#     if not wait_for_output:
+#         bash_command = "nohup %s &" % bash_command
+
+#     if folderpath != None:
+#         bash_command = "cd %s && %s" % (folderpath, bash_command) 
+
+#     sess = paramiko.SSHClient()
+#     sess.load_system_host_keys()
+#     #ssh.set_missing_host_key_policy(paramiko.WarningPolicy())
+#     sess.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+#     sess.connect(servername, username=username, password=password)
+#     stdin, stdout, stderr = sess.exec_command(bash_command)
+    
+#     # depending if waiting for output or not.
+#     if wait_for_output:
+#         stdout_lines = stdout.readlines()
+#         stderr_lines = stderr.readlines()
+#     else:
+#         stdout_lines = None
+#         stderr_lines = None
+
+#     sess.close()
+#     return stdout_lines, stderr_lines
+
+
+
+
+# commands are going to be slightly different.
+
+# NOTE: leave this one for later.
+# # this one is identical to matrix.
+# def run_on_bridges(bash_command, servername, username, password, num_cpus=1, num_gpus=0, password=None,
+#         folderpath=None, wait_for_output=True, prompt_for_password=False,
+#         require_gpu_type=None):
+#     raise NotImplementedError
+#     pass
+
+### NOTE: I shoul dbe able to get a prompt easily from the command line.
+
+# NOTE: if some of these functionalities are not implemented do something.
+
+# a way to run is to do a 
+
+# this would work 
+
+# echo "script" > run_slurm.sh && chmod +x run_slurm.sh && sbatch 
+# (commands about resources) && rm run_slurm.sh 
+
+
+# some of these are going to require creating a file.
+# question about waiting for output.
+
+
+# NOTE: if a file is required, this is suboptimal. I think that it should be 
+# possible to run it on a remote machine. it can be a long command.
+
+
+# this is probably going to be done in the right folder.
+
+# two ssh and run a command.
+# NOTE: how to cancel a session.
+# 
+
+# check if a file is on the server or not.
+
+# have a sync files from the server.
 
 
 
 ### plotting 
 
 # in the case of using the library in the server, this may fail.
+# TODO: check if maplotlib is on the server or not.
 try:
     import matplotlib.pyplot as plt 
 except ImportError:
@@ -861,6 +1262,7 @@ class GridPlot:
 # TODO: updatable figure.
 
 # TODO: add histogram plo, and stuff like that.
+
 
 
 ### data to latex
@@ -986,6 +1388,7 @@ class PatienceRateSchedule:
     def get_rate(self):
         return self.cur_rate
 
+# TODO: write AdditiveRateSchedule; MultiplicativeRateSchedule.
 class AddRateSchedule:
     def __init__(self, rate_init, rate_end, duration):
         
@@ -1233,6 +1636,45 @@ def preprocess_sentence(sent, tk_to_idx,
         proc_sent.extend([eos_idx] * eos_times)
 
     return proc_sent
+
+### simple featurization
+
+# TODO: a class that takes care of managing the domain space of the different 
+# architectures.
+
+# this should handle integer featurization, string featurization, float
+# featurization
+# 
+
+# features from side information.
+# this is kind of a bipartite graph.
+# each field may have different featurizers
+# one field may have multiple featurizers
+# one featurizers may be used in multiple fields
+# one featurizer may be used across fields.
+# featurizers may have a set of fields, and should be able to handle these 
+# easily.
+
+# easy to featurize sets of elements, 
+
+# handling gazeteers and stuff like that.
+# it is essentially a dictionary. 
+# there is stuff that I can do through
+
+# I can also register functions that take something and compute something.
+# and the feature is that. work around simple feature types.
+
+# TODO: this is going to be quite interesting.
+
+# come up with some reasonable interface for featurizers.
+# TODO: have a few operations defined on featurizers.
+
+# NOTE: that there may exist different featurizers.
+# NOTE: I can have some form of function that guesses the types of elements.
+
+# NOTE: for each csv field, I can register multiple features.
+
+# NOTE that this is mainly for a row. what about for things with state.
 
 ### managing large scale experiments.
 import itertools as it
@@ -1489,6 +1931,8 @@ def load_experiment_folder(exp_folderpath, json_filenames,
 
     return (ps, rs)
 
+# TODO: syncing folders
+
 ### project manipulation
 def create_project_folder(folderpath, project_name):
     fn = lambda xs: join_paths([folderpath, project_name] + xs)
@@ -1519,12 +1963,12 @@ def create_project_folder(folderpath, project_name):
 def wrap_strings(s):
     return ', '.join(['\'' + a.strip() + '\'' for a in s.split(',')])
 
+# string manipulation.
 
+# TODO: something to split on spaces 
+# or strip on spaces. and stuff
 
-
-
-
-
+# join strings by separator.
 
 # it is very useful to manage the output in such a way that it is easy 
 # to send things to a file, as it is easy to send them to the terminal.
@@ -3279,3 +3723,505 @@ def wait(x, units='s'):
 
 # do different commands for running in different servers there.
 # it should be possible to run a command directly after starting a session there.
+
+# NOTE: remember that it is nice to run this thing from command line. 
+# there is still the question about creating these things through the command 
+# line. the question is how to manage multiple functionalities.
+
+# NOTE: for having something about key identification for not having a 
+# password prompt for connecting to the server.
+
+# TODO: add some functions to manipulate csv files to generate tables about 
+# quantities that I care about.
+
+# add the results.json file.
+# file. write json file with just the fields that matter.
+
+# TODO: handle better the continuum of steps that can be taken. 
+# this means 
+
+# TODO: tests for whole experiments in the sense that is mostly about what do we 
+# expect to happen and why is it not happening. it is just going to help going 
+# through the experiments the first time.
+
+# TODO: the project should be easy to manage. it should be possible to 
+# read the data from disk, do something and then, put it back on disk.
+
+# map a file line by line somehow.
+
+# TODO: have mailing functionalities upon termination of the job.
+# this sounds something reasonable if I want to check the results soon.
+
+# NOTE: for experiments, it is important to maintain consistency between 
+# the remote version and the local version.
+
+# TODO: have a way of syncing folders
+
+# possible to have character escaping there.
+
+# TODO: there is the question of on which compute node was it ran. 
+# that can be done through sacred, if I really want to be 
+
+# TODO: functions for file processing. like taking a file with a huge number of 
+# functions and just keeping those that I care about.
+# this is clearly processing the file. and then, keep only the imports 
+# used at the top. NOTE: that there is some form of dependency because some 
+# auxiliary functions may use some other auxiliary functions, 
+# there is some recursion that I need to go about.
+
+# TODO: make it easy to run callibration experiments to get a sense of how 
+# much an epoch is going to take. also, I think that it would be interesting 
+# to have some form to actually talk about epochs and performance. that would 
+# make it easier.
+
+# NOTE: have a simple way of running any command of the toolbox on the command
+# line. I think that this is only possible for commands with string arguments 
+# or I have to anottate the commands with tags.
+# --int --str --float 
+# --bool is currently unsupported
+
+# these are going to especially useful for file manipulation, and for file 
+# file creation.
+
+# TODO: I think that it would also be interesting to have a way of running a 
+# folder somehow. 
+
+# extracting the requirements from running some command
+
+# manipulation of the model.
+
+# TODO: check how to fix the randomness for things such as tensorflow 
+# and other problems.
+
+# comparison of different experiments is going to be important, I think that 
+# this is going to be mostly in the analysis code for plot generation and 
+# other things.
+
+# NOTE: preprocessing is going to be quite interestin, but I need 
+# to be careful about how do I detect that something is a function call.
+
+# TODO: there is probably some more interesting prints, but I do not 
+# know exactly what do I want.
+
+# to match a function call, basically, the name of the function followed by 
+# a parens.
+# can first parse the definitions and do that. Note that this is important 
+# for generating the toolbox in a way that I'm happy sharing.
+# also perhaps for reducing the size of file.
+
+# TODO: something to remove all comments of a file.
+
+# TODO: something to call from the command line to strip a file of comments 
+# somehow. 
+# in the case of python, perhpas move all imports to the top.
+# NOTE: have a simple way of doing this processing in a file.
+# NOTE: it is good to have something that allows me to go quickly and seamlessly 
+# between the terminal and the python interpreter.
+
+# NOTE: something to consider would be
+
+# another interesting aspect is having something to remove all comments, or 
+# just comments outside functions.
+
+# the file manipulation part can be used effectively outside the shell.
+# one high level goal is to have most of the operations be done outside the 
+# function.
+
+# TODO: there is stuff on data loading and data buffering that would be 
+# interesting to consider. I don't know what are the main aspects that make 
+# it possible to do it? is it just multithreaded code? check this out.
+# have stuff that allows you to easily set up a model in different languages.
+
+# TODO: perhaps also make it easy to submit jobs from the command line, 
+# even it requires creating other things.
+
+# TODO: develop tools for data collection. this means that I can register 
+# information and stuff like that. 
+# event data and stuff like. register certain things. simple data types.
+
+# also, have th capacity of going seamlessly between disk and memory.
+
+# for example, it should be possible to do everything with the experiments
+# regardless of how much time passed between they have been created.
+# failing to do this, means that you cannot reuse the information there. 
+
+# TODO: provide a clock object that allows you do get time and date.
+# and both in 
+
+# TODO: study epoch and convergence curves and see what is the distribution
+# of performance for the models. 
+
+# TODO: it should be as simple to keep a dataset, and it is to keep code.
+# data should be easy to generate and maintain. 
+
+# TODO: data should be easy to change, and keep in place. data is effectively 
+# the most important thing in ML.
+
+# TODO: easy to crawl data and tools. how to?
+
+# these in memory datasets are quite powerful, as we could read them and 
+# write them to memory again. the append mode is better, but the
+# question about keeping data is quite important. perhaps git works alright
+# for simple things, but it is suboptimal. log data or event data.
+
+# NOTE: the definition of data is essentially tied to a reader and writer, 
+# and some form of registering stuff.
+
+# training for longer or having longer patienties seems to make a difference 
+# in running the models. 
+
+# TODO: have some typical configs, like calibration, fast, noop, default.
+# calibration is an experiment, rather than a config, note that a run is not 
+# independent of the machine it was ran in.
+
+# TODO: it should be possible to very easily extract a few quantities from 
+# log files, do this. lines that do not match the pattern can be ignored.
+# notion of a sequence of objects of the same type that can be processed easily.
+# extracting information from files is very important.
+
+# TODO: extracting information 
+
+# TODO: perhaps I can do different tracking of the learning rates, or of 
+# what constitutes an improvement. I think that asking for the best is a little
+# strict. I think that it is better to keep a running average.
+# if overall is improving, I think that it is better. maybe be less aggresive.
+
+# TODO: it should be easy to serialize models and load them again. 
+# it should be easy to run models on default data.
+
+# typical data:
+# - sequences
+# - images
+# - paired data
+# - sequences of floats.
+
+# it would be interesting to define these data types and work directly with them
+# it would make it easier to do certain things.
+
+# main preprocess, main train, main evaluate, main analyze 
+# main all or something.
+# should be easy to run all these things  
+# what is the advantage of doing this?
+
+# should be easy to run a sequence of these one after the other.
+# it should be easy to keep a model around for future inspection.
+
+# it should be easy to run a model on some data, just from the command line.
+# I think that one the the main things is 
+
+# extract data for graphs. 
+
+# extract data from tree structures, like the simple deeparchitect with single 
+# input, single output
+
+# ability to interface with simpler code in C or something like that.
+# that would be nice to do.
+
+# have a research toolbox in C. for simple operations and simple data 
+# structures. stuff like that.
+
+# NOTE: perhaps the creation of certain code in C can be done through 
+# Python, or at least some aspects can be generated, like functions, 
+# argument types, and perhaps memory manipulation. 
+# other interfaces that make sense can also be done there. I don't think 
+# it is very easy to generate code in python for C. 
+
+# TODO: interface for a model and a model trainer.
+#
+
+# TODO: have easy functionality for conditional running, e.g., if a file exists
+# or not.
+
+# if the operations are only a few, maybe the generation of the code can be 
+# done in Python, otherwise, it seems hard to do. For example, if the 
+# operations are mostly about doing some arithmetic operations, then it 
+# should be possible to do them in Python, and define the data structures 
+# accordingly.
+
+# everything should be possible to do programatically. 
+# the question is what is the benefit of doing this way rather than just doing 
+# it. I think that 
+
+# TODO: have a function to clear a latex file from comments. useful for submissions.
+# careful about licenses. maybe be necessary to keep some licenses in some files.
+
+# interface for data.
+
+# interface for different tasks for putting together a model really fast.
+# some general formats. 
+
+# TODO: doing fine-tuning should be easy.
+
+# TODO: have a sequence of patiences or something like that, or only tune a 
+# few hyperparameters. 
+# TODO: easy interfacing with DeepArchitect for setting search spaces.
+# easy to train a few models based on some input representation.
+
+# interface to the data should be easy.
+
+# simple featurizer for sequences. 
+
+# TODO: what about sharing the weights.
+
+# TODO: always need to think about what is it going to be the representation for 
+# the base models. doing this right is important to save computation. it si 
+# better to keep the data in that format.
+
+# TODO: models from graph data. 
+# the question is the minimum information that I can use about the model.
+# interface for setting up an easy LSTM model and easy Convolutional Net.
+# these models should be super easy to use and load.
+# the definitions and simple. the training should also be simple.
+
+# I think that often the most important thing is just training for long.
+
+# TODO: for preprocessing code files, have a way of sorting the function 
+# definition by name or by number of args or whatever. number of times it 
+# appear somewhere.
+
+# it should be easy to have a folder and do something with it. for example,
+# get the data at the end of the experiment. 
+
+# tensorflow model manipulation. 
+# pytorch model manipulation.
+
+# make sure that you can address pytorch pitfalls.
+
+# TODO: the server should feel like an extension of the local machine in 
+# that it is simple to push things to the server and pull them from the server.
+# it is easy to ask the server about how it is going.
+
+# TODO: have an easy way of setting up email reminders when experiments 
+# complete. do periodic emails with the state, and how are things going.
+
+# TODO: minimum number of reductions before next reduction. this is 
+# for the step size patience and stuff like that. it should help running things.
+
+# easy error analysis, like  what are some of the examples that failed.
+
+# the inspect module is nice for code manipulation.
+
+# it should be easy to take a folder and run it on the cluster with some 
+# configuration, then it should be easy to get the results back, maybe with
+# locking or not.
+
+# TODO: train something that knows when to reduce the step size of the models 
+# based on the current step size, and the amount of variation observed.
+# these should ideally be trained for a single model.
+# there is also a question about normalization and stuff like that.
+
+# TODO: add some preprocessors for different types of numbers. basically, 
+# things that can be computed after you register all the training data.
+
+# experiment sequencing is important, but I don't know exactly how to do it.
+# it may be inside the cfg for that experiment, or it may be outside the experiments.
+# it may be easier because it shows the dependencies, but I think that it 
+# becomes too fragmented. if I have functions to go over all folders,
+# I think that it is doable, but it is still trouble some.
+
+# TODO: what can we do to tune the step size parameter?
+# TODO: what to do when there? it is kind of like some form of optimization.
+
+# TODO: how to deal with things where observations are sequences? I think that 
+# it can be consumed with an LSTM. 
+
+# TODO: implementation of simple hierarchical LSTM, maybe a single level or 
+# something like that.
+
+# I want it to be really easy to take something and just try something 
+# TODO: perhaps add tools to make the setup easy too.
+
+# run some of those models.
+
+# add some additional conditions that help to detect if the model is training 
+# or not.
+
+# it would  be interesting to add something  
+
+# add support to some other plotting libraries, like d3 and other relevant 
+# ones. 
+# there is also graphviz that may be interesting for certain aspects of the code.
+
+# TODO: add some default model optimization that uses some reasonable decrease 
+# schedule, or tries a reasonable set of hyperparameters for the typical things.
+# it is going to be important to check this.
+
+# NOTE: if running things directly from the command line, I think that it is 
+# going to be easy to run this code, even if doing a remote call. 
+# perhaps printing to the command line is the way to go, easy 
+
+# TODO: it should be easy to set sweeps with respect to some parameters.
+# I think that it is, actually.
+
+# TODO: using inspect, it is possible to run a function or at least to 
+# get the arguments for a function.
+
+# easy to store sequences of sequences? json files for that.
+
+# TODO: add in the run script the option to only run if it does not 
+# exist already. I think that results.json is a good way of going about it, 
+# but probably not quite. the question is where should we test if something should
+# be done or not? that is, to run or not.
+
+# running those that have not been ran yet. that sounds good.
+# also, maybe run guarded experiments for these. I don't think that it should 
+# take too much time.
+
+# what is a good description of a featurizer. I think that the definition of 
+# the data is relatively stable, but featurizers are malleable, and depend 
+# on design choices. the rest is mostly independent from design choices.
+
+# binary search like featurization. think about featurization for 
+# directory like structures.
+# this is binarization. check how they do it in scikit-learn.
+
+# manipulating the code should be easy because we can solve the problem
+# by 
+
+# download certain files periodically or when it terminates. this allows to 
+# give insight into what is happening locally.
+# there is syncing functionality 
+
+# TODO: make it easy to use the sync command.
+
+# managing jobs after they are running in the server.
+
+# TODO: write a file with information about the system that did the run.
+# gathering information about the system is important
+
+# TODO: have a way of knowing which jobs are running on the server (i.e., which 
+# are mine.) or keep this information locally. this can be done asyncronously.
+# keep this information somewhere. 
+
+# TODO: and perhaps kill some of the jobs, or have some other file 
+# that say ongoing. define what is reasonable to keep there.
+
+# NOTE: make a single experiment. it does not make sense to have multiple 
+# experiments with the same configuration. easier to keep track this way
+# up to three word descriptive names.
+
+# 09-06-2017_....
+# labelling experiments like this can work, I think.
+
+# TODO:
+# Calendar
+# get day, get hour, get minute, get year, get month, for some, there is the 
+# possibility of asking for 
+# get_now(...): 
+# choose whether you want as a string or number.
+
+# the question is when the experiment is created. there should exist a single
+# experiment. run_only_if_notexists. there is the question of running the code.
+# this is easy, check 
+# there is some. has an option to override. 
+# test if a given file exists, if yes, then it does not run the experiment.
+# NOTE: making everything index to the place where it is is nice.
+
+# NOTE: to control randomness, it is necessary to set it on every call to the 
+# function. that is non-trivial. look at what sacred does.
+
+# TODO: have a simple way of syncing the folder for running experiments 
+# somewhere. it should be really easy to sync the experiments on those folders.
+# 
+
+# make it easy to sync the folders. how?
+# I think that for now, the most important is syncing everything.
+
+# TODO: perhaps sync remote folder through the command line.
+# it is sort of a link between two folders.
+
+# I don't think that the current one is correct.
+
+# find a nice way of keeping track of the experiments having a certain 
+# configuration. it helps thinking about what I am doing.
+
+# NOTE: what is the advantage of using scp or rsync
+
+# TODO: use cases about making things work. 
+
+# sync two folders or multiple folders
+
+# --force-rerun option.
+# --skip if 
+
+# creation of all the models 
+
+# do something about the script to get it to work 
+# just do a loop, and fix the number of tasks and keep things there.
+
+# only keep the arguments that matter in writing this thing to disk.
+
+# it is hard to draw conclusions from random experiments. 
+# typical parameters to vary are 
+# computational capacity.
+# amount of data
+# time budget.
+
+# TODO: add stuff to use hyperparameters optimization really easily
+# stick with the str, int, float, bool types.
+# NOTE that for strings, I probably have to give it a set, it is a discrete
+# set of models.
+
+# there is a question about the run script, and what can be done
+# register a daemon, do something periodically, for example, reads the folder 
+# there are gets the files.
+
+# there is stuff that we can do with rsync. there is stuff that I can ignore.
+
+# TODO: there is stuff that is part of the analysis, like the 
+
+# NOTE: in syncing folders, it is important to keep the most recent ones
+# mostly from the server from.
+ 
+# should be easy to run multiple commands remotely.
+
+# handle properly the non-existence of visualization services.
+
+# NOTE: it is  easy to define a function locally and then update it to the
+# server.
+
+# testing code for interacting with the server is nice because I can stop if 
+# it fails to reach it, so I can iterate fast.
+
+# NOTE: it mostly makes sense to get stuff from the server to the 
+# local host.
+
+# TODO: add function to flatten a dictionary.
+# and perhaps functions to go in the other directions.
+
+# basically there is stuff on the upload link, and there is stuff on the 
+# download link. on the upload link, I just want to sync some of the 
+# experiments.
+
+# NOTE: I think that for the most part, I will be syncing folders in the 
+# same server. they may be different across experiments, but that is not 
+# necesarily true.
+
+# TODO: think about introducing the configurations in a way that they are 
+# related.
+
+# how to keep different experiments. also, the fact that the code sort of 
+# changes with the time the model is run is also something important. 
+# the experiments folder can be done 
+
+# the only way of getting this for sure is to have a copy of the code at the 
+# moment it is done.
+
+# the expectations about running about running and what can I do regarding 
+# different things that make a difference. for example, what is the interest 
+# in having replication in the configs? maybe there is no interest, but there 
+# is a question of entry point, I guess. not even that, the entry point is 
+# the same in both cases. It would be better to have just one or the other
+# I think that the config would be better.
+
+# why would you change an experiment configuration. only if it was due to 
+# bug. what if the code changes, well, you have to change the other experiments
+# according to make sure that you can still run the exact same code, or maybe 
+# not. 
+
+# it does not make much sense, because they may become very outdated.
+
+# the fact that I have to run a command on a server makes it that I have to 
+# generate a file many times.
+
+# TODO: add to the toolbox functionality to tune the step size.
