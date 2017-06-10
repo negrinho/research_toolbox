@@ -36,6 +36,47 @@ def merge_dicts(ds):
             out_d[k] = v
     return out_d
 
+def groupby(xs, fn):
+    assert isinstance(xs, list)  
+    
+    d = {}
+    for x in xs:
+        fx = fn( x )
+        if fx not in d:
+            d[fx] = []
+
+        d[fx].append(x)
+    
+    return d
+
+def flatten(d):
+    assert isinstance(d, dict)
+
+    xs = []
+    for (_, k_xs) in d.iteritems():
+        assert isinstance(k_xs, list)
+        xs.extend(k_xs)
+    return xs
+
+def recursive_groupby(p, fn):
+    assert isinstance(p, dict) or isinstance(p, list)
+
+    if isinstance(p, list):
+        return groupby(p, fn)
+    else:
+        return {k : recursive_groupby(k_p, fn) for (k, k_p) in p.iteritems()}
+
+def recursive_flatten(p):
+    assert isinstance(p, dict) or isinstance(p, list)
+
+    if isinstance(p, list):
+        return list(p)
+    else:
+        xs = []
+        for (_, k_p) in p.iteritems():
+            xs.extend( recursive_flatten(k_p) )
+        return xs
+
 def key_union(ds):
     ks = []
     for d in ds:
@@ -59,10 +100,6 @@ def retrieve_values(d, ks, fmt_tuple=False):
         out_d = tuple([out_d[k] for k in ks])
     return out_d
 
-# TODO: difference between set and define.
-# set if only exists.
-# define only if it does not exist.
-# both should have concrete ways of doing things.
 def set_values(d_to, d_from, 
         abort_if_exists=False, abort_if_notexists=True):
     assert (not abort_if_exists) or all(
@@ -210,10 +247,13 @@ def file_exists(path):
 def folder_exists(path):
     return os.path.isdir(path)
 
+# NOTE: this is not done.
 def create_file(filepath,
         abort_if_exists=True, create_parent_folders=False):
     assert create_parent_folders or folder_exists(path_prefix(filepath))
     assert not (abort_if_exists and file_exists(filepath))
+
+    raise NotImplementedError
 
     if create_parent_folders:
         create_folder(path_prefix(filepath),
@@ -399,7 +439,7 @@ def now(omit_date=False, omit_time=False, time_before_date=False):
         date_s = "%s-%s-%s" % (d.year, d.month, d.day)
     time_s = ''
     if not omit_time:
-        date_s = "%s:%s:%s" % (d.hour, d.minute, d.second)
+        time_s = "%s:%s:%s" % (d.hour, d.minute, d.second)
     
     vs = []
     if not omit_date:
@@ -407,11 +447,19 @@ def now(omit_date=False, omit_time=False, time_before_date=False):
     if not omit_time:
         vs.append(time_s)
 
+    # creating the string
     if len(vs) == 2 and time_before_date:
-        vs = vs[::-1]        
+        vs = vs[::-1]
     s = '|'.join(vs)
 
     return s
+
+def now_dict():
+    x = datetime.datetime.now()
+
+    return  create_dict(
+        ['year', 'month', 'day', 'hour', 'minute', 'second', 'microsecond']
+        [x.year, x.month, x.day, x.hour, x.minute, x.second, x.microsecond])
 
 ### useful iterators
 import itertools
@@ -655,6 +703,8 @@ def gpus_free():
 # memory utilization.
 # TODO: check if this handles memory appropriately.
 # TODO: chec 
+# TODO: there is also a matter about gpu memory or something like that.
+# I can read those numbers, but do something about the other things.
 def gpus_free_ids():
     try:
         out = subprocess.check_output(['nvidia-smi', '--query-gpu=utilization.gpu', 
@@ -811,23 +861,11 @@ def run_on_server(bash_command, servername, username=None, password=None,
     sess.close()
     return stdout_lines, stderr_lines
 
-# NOTE: this part here can be improved.
-# NOTE: for now, this is just going to use a single gpu for each time. 
-
-# doing double ssh to 
-
-# TODO: check that you get the right prompt rather than something else.
-# NOTE: certain things may be troublesome because of escaping the commands 
-# correctly and stuff like that. I don't think that that would be 
-# handled by itself.
-# having that into account in the command passed may be a little troublesome.
-
-# I need to handle this some how.
-# there are cases where I can just run ssh directly.
-
-### running jobs on the available computational nodes.
+### running jobs on available computational nodes.
 import inspect
+import uuid
 
+# tools for handling the lithium server, which has no scheduler.
 def get_lithium_nodes():
     return {'gtx970' : ["dual-970-0-%d" % i for i in range(0, 13) ], 
             'gtx980' : ["quad-980-0-%d" % i for i in [0, 1, 2] ],
@@ -835,55 +873,17 @@ def get_lithium_nodes():
             'titan' : ["quad-titan-0-0"]
             }
 
-# it is better to pass a user name.
-
-# NOTE: prompting for password does not make much sense.
-# gpu_memory_total
-# gpu_memory_free
-### TODO: add something to query how much memory is it 
-# being used there.
-
-# memory_total
-# memory_free
-
-# TODO: perhaps it is possible to run the model in such a way that makes 
-# it easy to wait for the end of the process, and then just gets the results.
-# for example, it puts it on the server, sends the command, and waits for 
-# it to terminate. gets the data everytime.
-
-# it has to connect for this...
-
-# TODO: the question is which are the cpus that are free. 
-# NOTE: it is a good idea to think about one ssh call as being one remote 
-# function call.
-
-# in the generation of calls lines, it is a good idea to see other aspects.
-
-# also return the gpus that are free.
-
-# TODO: should also be easy to check 
-
-# it ssh for this.
-
-# ignore the GPUs that are down.
-# add functionality to use server if resources are available.
-
-# what if something does not succeed, it still gives back something relevant.
-
-## TODO: get to the point were I can just push something to the server 
-# and it would work.
-
-# TODO: perhaps it is possible to get things to stop if one of the 
-# them is not up.
-# I'm sure that this is going to fail multiple times.
-
-# NOTE: this may need the toolbox there, otherwise, it is a pain.
 def get_lithium_resource_availability(servername, username, password=None,
-        abort_if_any_node_unavailable=True):
+        abort_if_any_node_unavailable=True, 
+        nodes_to_query=None):
 
-    # prompting for password if asked about.
+    # prompting for password if asked about. (because lithium needs password)
     if password == None:
         password = getpass.getpass()
+
+    # query all nodes if None
+    if nodes_to_query == None:
+        nodes_to_query = flatten( get_lithium_nodes() )
 
     # script to define the functions to get the available resources.
     cmd_lines = ['import psutil', 'import subprocess', 'import numpy as np', '']
@@ -911,120 +911,99 @@ def get_lithium_resource_availability(servername, username, password=None,
     run_on_server(write_script_cmd, servername, username, password)
 
     # get it for each of the models
-    resources = {}
-    for gpu_type in nodes:
-        resources[gpu_type] = []
-        for host in nodes[gpu_type]:
-            cmd = 'ssh -T %s python avail_resources.py' % host
-            stdout_lines, stderr_lines = run_on_server(
-                cmd, servername, username, password)
+    node_to_resources = {}
+    for host in nodes_to_query:
+        cmd = 'ssh -T %s python avail_resources.py' % host
+        stdout_lines, stderr_lines = run_on_server(
+            cmd, servername, username, password)
+        
+        print stdout_lines, stderr_lines
 
-            # print stdout_lines, stderr_lines
-            # if it did not fail.
-            if len(stdout_lines) == 1:
-                # extract the actual values from the command line.
-                str_vs = stdout_lines[0].strip().split(';')
-                assert len(str_vs) == 7
-                print str_vs
-                vs = [ fn( str_vs[i] ) 
-                    for (i, fn) in enumerate([int, float, int] * 2 + [str]) ]
-                vs[-1] = [int(x) for x in vs[-1].split(' ') if x != '']
+        # print stdout_lines, stderr_lines1113
+        # if it did not fail.
+        if len(stdout_lines) == 1:
+            # extract the actual values from the command line.
+            str_vs = stdout_lines[0].strip().split(';')
+            assert len(str_vs) == 7
+            print str_vs
+            vs = [ fn( str_vs[i] ) 
+                for (i, fn) in enumerate([int, float, int] * 2 + [str]) ]
+            vs[-1] = [int(x) for x in vs[-1].split(' ') if x != '']
 
-                d = create_dict(ks, vs)
-                resources[gpu_type].append(d)
-            else:
-                assert not abort_if_any_node_unavailable
-                resources[gpu_type].append(None)
+            d = create_dict(ks, vs)
+            node_to_resources[host] = d
+        else:
+            assert not abort_if_any_node_unavailable
+            node_to_resources[host] = None
 
     delete_script_cmd = 'rm avail_resources.py'
     run_on_server(delete_script_cmd, servername, username, password)
-    return resources
+    return node_to_resources
 
 
+# TODO: add functionality to check if the visible gpus are busy or not 
+# and maybe terminate upon that event.
+### this functionality is actually quite hard to get right.
+# running on one of the compute nodes.
+# NOTE: this function has minimum error checking.
+def run_on_lithium_node(bash_command, node, servername, username, password=None, 
+        visible_gpu_ids=None, folderpath=None, wait_for_output=True):
 
+    # check that node exists.
+    assert node in flatten( get_lithium_nodes() )
 
+    # prompting for password if asked about. (because lithium needs password)
+    if password == None:
+        password = getpass.getpass()
 
-# ideally, you just want to run things once.
-# also, perhaps, I would like to just point at the folder and have it work.
-
-
-
-### this has to be done better.
-
-# read prompt for password_prompt
-
-
-    # not quit because it is going to be one for each computer.
-
-    # dictionary has to match there.
-
-
-# I wonder if this works or not.
-
-# it would be interesting to check if I can 
-
-
-# get_resource_availability_on_lithium
-
-
-# for the ones with a scheduler, it should be possible to do this easily without
-# having to worry about querying for the resources.
-
-
-# I will need to wrap this as a string. I need to be careful about it.
-
-    # write the script once, and then remove it. be careful about this.
-
-    # ssh -t negrinho@
-    # "negrinho@128.2.211.186"
-
-    # try to do it for a single one, and then run on it.
-    # do not have my username in it.
+    # if no visilbe gpu are specified, it creates a list with nothing there.
+    if visible_gpu_ids is None:
+        visible_gpu_ids = []
     
-    # go there, and print something 
-    # there should exist code to distribute 
-    # things easily.
+    # creating the command to run remotely.
+    gpu_cmd = 'export CUDA_VISIBLE_DEVICES=%s' % ",".join(map(str, visible_gpu_ids))
+    cmd = "ssh -T %s \'%s && %s\'" % (node, gpu_cmd, bash_command)
 
-    # NOTE: even just doing something like doing 
-    # ssh once and getting all the data may be interesting
-    # can I do that.
-
-    # it is better if I can do it directly.
-
-    # the laucnh script for a task needs to be easy.
+    return run_on_server(cmd, **retrieve_values(locals(), 
+        ['servername', 'username', 'password', 'folderpath', 'wait_for_output']))
     
-    # just the creation the com
+
+
+# be careful about running things in the background.
+# the point is that perhaps I can run this command in 
+# the background, which may actually work. that would be something interesting 
+# to see if th 
+
     pass
 
-# NOTE: to get the available processors and gpus, it is necessary to be 
-# careful about memory tool. I think 
+    # run on the model.
 
-# NOTE: may require a python multi line command. otherwise, just put in some 
-# script and then erase it.
+# NOTE: there may exist problems due to race conditions, but this can be 
+# solved later.
 
-# NOTE: on lithium I have to write nohup things.
-# running on lithium is kind of tricky. more sshs.
-# NOTE: that a command is always to be ran on a specific node.
-# I want to get information about this node. what is the problem, 
-# not for every time
-
-# TODO: develop functions to look at the most recent experiments, or the files
-# that were change most recently.
-
-# also stuff to look into the toolbox.
-# the plug and play to make the experience 
+# the command should be similar. 
 
 
-def run_on_lithium(bash_command, servername, username, password=None, 
-        num_cpus=1, num_gpus=0, folderpath=None, 
+# this has to work harder to see that it is doing the right thing.
+def run_on_lithium(bash_command_lst, servername, username, password=None, 
+        num_cpus_lst=1, num_gpus_lst=0, folderpath=None, 
         wait_for_output=True, require_gpu_types=None, require_nodes=None,
         run_on_head_node=False):
 
-        folderpath=None, wait_for_output=True, prompt_for_password=False
+        # folderpath=None, wait_for_output=True, prompt_for_password=False
 
     if password == None and prompt_for_password:
         password = getpass.getpass()
 
+
+
+
+# essentially, try a bunch 
+
+
+# there is not really an allocator, so I think that it is hard to 
+# get this to work.
+# I think that most sophisticated stuff shoul
 
 # there is stuff that I need to append. for example, a lot of these are simple 
 # to run. there is the syncing question of folders, which should be simple. 
@@ -1053,13 +1032,6 @@ def run_on_lithium(bash_command, servername, username, password=None,
 # # # needs to figure out a gpu.
 # # # it is more annoying.
 
-# # I think that experiments should always be 
-
-# #     script = ["",
-#             # ]
-
-#     run_on_server()
-
     # for requiring some gpu type, this is going to be a lot simpler.
 
     # TODO: this is mostly a matter of setting the right part of the model.
@@ -1068,103 +1040,65 @@ def run_on_lithium(bash_command, servername, username, password=None,
     # basically, can move to one of these folders, put the script there, 
     # run it, and delete it.
 
-# this is not true.
+# TODO: NOTE that the script should always be removed, even if it does not 
+# succeed. NOTE that only the last one is affect. I can bracket to make 
+# sure that things work properly. this is nice.
+def run_on_matrix(bash_command, servername, username, password=None, 
+        num_cpus=1, num_gpus=0, mem_budget=8.0, time_budget=60.0,
+        mem_units='gb', time_units='m', 
+        folderpath=None, wait_for_output=True, 
+        require_gpu_type=None, run_on_head_node=False):
 
-# submit a job there.
+    assert (not run_on_head_node) or num_gpus == 0
+    assert require_gpu_type is None ### NOT IMPLEMENTED YET.
 
-# NOTE: for running on matrix, there is the question about 
-# this is for parallel parts of the model.
+    # prompts for password if it has not been provided
+    if password == None:
+        password = getpass.getpass()
 
-# whether to run on headnode
-
-# can run multiple of these 
-
-# def run_on_matrix(bash_command, servername, username, password=None, 
-#         num_cpus=1, num_gpus=0, mem_budget=8.0, time_budget=60.0,
-#         mem_units='gb', time_units='m', 
-#         folderpath=None, wait_for_output=True, 
-#         require_gpu_type=None, run_on_head_node=False):
-
-#     if require_gpu_type is not None: 
-#         raise NotImplementedError
-
-#     # prompts for password if it has not been provided
-#     if password == None:
-#         password = getpass.getpass()
-
-#     ## basically, needs slurm instructions.
-
-#     'sbatch --cpus-per-task=%d --gres=gpu:%d --mem=%d' 
-#     # matrix cmd has to have the job there.
-
-#     run_on_server(matrix_cmd, **retrieve_values(locals(), 
-#         ['servername', 'username', 'password', 'folderpath', 'wait_for_output'])
-
-
-# # it depends if it is to run on the node or not.
-
-# ####
-
-#     if username != None: 
-#         host = username + "@" + servername 
-#     else:
-#         host = servername
+    script_cmd = "\n".join( ['#!/bin/bash', bash_command] )
+    script_name = "run_%s.sh" % uuid.uuid4() 
     
-#     if password == None and prompt_for_password:
-#         password = getpass.getpass()
+    # either do the call using sbatch, or run directly on the head node.
+    if not run_on_head_node:
+        run_script_cmd = ' '.join([ 'sbatch', 
+            '--cpus-per-task=%d' % num_cpus,
+            '--gres=gpu:%d' % num_gpus,
+            '--mem=%d' % convert_between_byte_units(mem_budget, 
+                src_units=mem_units, dst_units='mb'),
+            '--time=%d' % convert_between_time_units(time_budget, 
+                time_units, dst_units='m'),
+            script_name ])
+    else:
+        run_script_cmd = script_name    
 
-#     if not wait_for_output:
-#         bash_command = "nohup %s &" % bash_command
+    # actual command to run remotely
+    remote_cmd = " && ".join( [
+        "echo \'%s\' > %s" % (script_cmd, script_name), 
+        "chmod +x %s" % script_name,
+        run_script_cmd,  
+        "rm %s" % script_name] )
 
-#     if folderpath != None:
-#         bash_command = "cd %s && %s" % (folderpath, bash_command) 
-
-#     sess = paramiko.SSHClient()
-#     sess.load_system_host_keys()
-#     #ssh.set_missing_host_key_policy(paramiko.WarningPolicy())
-#     sess.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-#     sess.connect(servername, username=username, password=password)
-#     stdin, stdout, stderr = sess.exec_command(bash_command)
-    
-#     # depending if waiting for output or not.
-#     if wait_for_output:
-#         stdout_lines = stdout.readlines()
-#         stderr_lines = stderr.readlines()
-#     else:
-#         stdout_lines = None
-#         stderr_lines = None
-
-#     sess.close()
-#     return stdout_lines, stderr_lines
+    return run_on_server(remote_cmd, **retrieve_values(
+        locals(), ['servername', 'username', 'password', 
+            'folderpath', 'wait_for_output']) )
 
 
-
-
-# commands are going to be slightly different.
-
-# NOTE: leave this one for later.
-# # this one is identical to matrix.
 # def run_on_bridges(bash_command, servername, username, password, num_cpus=1, num_gpus=0, password=None,
 #         folderpath=None, wait_for_output=True, prompt_for_password=False,
 #         require_gpu_type=None):
 #     raise NotImplementedError
-#     pass
+    # pass
+
+# TODO: waiting between jobs. this is something that needs to be done.
 
 ### NOTE: I shoul dbe able to get a prompt easily from the command line.
+# commands are going to be slightly different.
 
 # NOTE: if some of these functionalities are not implemented do something.
 
-# a way to run is to do a 
-
-# this would work 
-
-# echo "script" > run_slurm.sh && chmod +x run_slurm.sh && sbatch 
-# (commands about resources) && rm run_slurm.sh 
-
-
-# some of these are going to require creating a file.
-# question about waiting for output.
-
+# NOTE: leave this one for later.
+# this one is identical to matrix.
 
 # NOTE: if a file is required, this is suboptimal. I think that it should be 
 # possible to run it on a remote machine. it can be a long command.
@@ -1172,13 +1106,199 @@ def run_on_lithium(bash_command, servername, username, password=None,
 
 # this is probably going to be done in the right folder.
 
-# two ssh and run a command.
-# NOTE: how to cancel a session.
-# 
-
 # check if a file is on the server or not.
 
 # have a sync files from the server.
+
+# probably it makes sense to prompt for password in both cases.
+
+# there are 
+
+# can be recursive, maybe...
+# NOTE: this is going to be done in the head node of the servers for now.
+# NOTE: may return information about the different files.
+# may do something with the verbose setting.
+
+# should be able to do it locally too, I guess.
+
+# only update those that are newer, or something like that.
+# complain if they are different f
+
+# only update the newer files. stuff like that. 
+# this is most likely
+
+# there is the nuance of whether I want it to be insight or to become 
+# something.
+
+# only update files that are newer on the receiver.
+
+# stuff for keeping certain extensions and stuff like that.
+# -R, --relative              use relative path names
+# I don't get all the options, bu t a few of them should be enough.
+# TODO: check if I need this one.
+
+# TODO: this can be more sophisticated to make sure that I can run this 
+# by just getting a subset of the files that are in the source directory.
+# there is also questions about how does this interact with the other file
+# management tools.
+
+# NOTE: this might be useful but for the thing that I have in mind, these 
+# are too many options.
+# NOTE: this is not being used yet.
+def rsync_options(
+        recursive=True,
+        preserve_source_metadata=True, 
+        only_transfer_newer_files=False, 
+        delete_files_on_destination_notexisting_on_source=False,
+        delete_files_on_destination_nottransfered_from_source=False,
+        dry_run_ie_do_not_transfer=False,
+        verbose=True):
+    
+    opts = []
+    if recursive:
+        opts += ['--recursive']
+    if preserve_source_metadata:
+        opts += ['--archive']
+    if only_transfer_newer_files:
+        opts += ['--update']
+    if delete_files_on_destination_notexisting_on_source:
+        opts += ['--delete']
+    if delete_files_on_destination_nottransfered_from_source:
+        opts += ['--delete-excluded']
+    if dry_run_ie_do_not_transfer:
+        opts += ['--dry-run']
+    if verbose:
+        opts += ['--verbose']
+
+    return opts                       
+
+# there is compression stuff and other stuff.
+
+# NOTE: the stuff above is useful, but it  is a little bit too much.
+# only transfer newer.
+
+# delete on destination and stuff like that. I think that these are too many 
+# options.
+
+# deletion is probably a smart move too...
+
+# imagine that keeps stuff that should not been there. 
+# can also, remove the folder and start from scratch
+# this is kind of tricky to get right. for now, let us just assume that 
+
+# there is the question about what kind of models can work.
+# for example, I think that it is possible to talk abougt 
+
+# question is 
+
+# the other deletion aspects may make sense.
+
+# rsync opts
+
+# do something directly with rsync.
+
+
+# NOTE: that because this is rsync, you have to be careful about 
+# the last /. perhaps add a condition that makes this easier to handle.
+def sync_local_folder_from_local(src_folderpath, dst_folderpath, 
+        only_transfer_newer_files=True):
+
+    cmd = ['rsync', '--verbose', '--archive']
+    
+    # whether to only transfer newer files or not.
+    if only_transfer_newer_files:
+        cmd += ['--update']
+
+    # add the backslash if it does not exist. this does the correct
+    # thing with rsync.
+    if src_folderpath[-1] != '/':
+        src_folderpath = src_folderpath + '/'
+    if dst_folderpath[-1] != '/':
+        dst_folderpath = dst_folderpath + '/'
+
+    cmd += [src_folderpath, dst_folderpath]
+    out = subprocess.check_output(cmd)
+
+    return out
+
+# NOTE: will always prompt for password due to being the simplest approach.
+# if a password is necessary , it will prompt for it.
+# also, the dst_folderpath should already be created.
+def sync_remote_folder_from_local(src_folderpath, dst_folderpath,
+        servername, username=None, 
+        only_transfer_newer_files=True):
+
+    cmd = ['rsync', '--verbose', '--archive']
+    
+    # whether to only transfer newer files or not.
+    if only_transfer_newer_files:
+        cmd += ['--update']
+
+    # remote path to the folder that we want to syncronize.
+    if src_folderpath[-1] != '/':
+        src_folderpath = src_folderpath + '/'
+    if dst_folderpath[-1] != '/':
+        dst_folderpath = dst_folderpath + '/'    
+        
+    dst_folderpath = "%s:%s" % (servername, dst_folderpath)
+    if username is not None:
+        dst_folderpath = "%s@%s" % (username, dst_folderpath)
+
+    cmd += [src_folderpath, dst_folderpath]
+    out = subprocess.check_output(cmd)
+    return out
+
+def sync_local_folder_from_remote(src_folderpath, dst_folderpath,
+        servername, username=None, 
+        only_transfer_newer_files=True):
+
+    cmd = ['rsync', '--verbose', '--archive']
+
+    # whether to only transfer newer files or not.
+    if only_transfer_newer_files:
+        cmd += ['--update']
+
+    # remote path to the folder that we want to syncronize.
+    if src_folderpath[-1] != '/':
+        src_folderpath = src_folderpath + '/'
+    if dst_folderpath[-1] != '/':
+        dst_folderpath = dst_folderpath + '/'    
+        
+    src_folderpath = "%s:%s" % (servername, src_folderpath)
+    if username is not None:
+        src_folderpath = "%s@%s" % (username, src_folderpath)
+
+    cmd += [src_folderpath, dst_folderpath]
+    out = subprocess.check_output(cmd)
+    return out
+
+### TODO: add compress options. this is going to be interesting.
+# check this.
+
+# there are remove tests for files to see if they exist.
+# I wonder how this can be done with run on server. I think that it is good 
+# enough.
+
+
+
+# can always do it first and then syncing. 
+
+# can use ssh for that.
+
+# TODO: make sure that those things exist.
+
+
+### adapt.
+
+
+# there is the override and transfer everything, and remove everything.
+
+# NOTE: syncing is not the right name for this.
+
+    # verbose, wait for termination, just fork into the background.
+
+# NOTE: the use case is mostly to transfer stuff that exists somewhere
+# from stuff that does not exist.
 
 
 
@@ -1186,12 +1306,14 @@ def run_on_lithium(bash_command, servername, username, password=None,
 
 # in the case of using the library in the server, this may fail.
 # TODO: check if maplotlib is on the server or not.
-try:
-    import matplotlib.pyplot as plt 
-except ImportError:
+
+# NOTE: this does not work. TODO: check if there is a display associated or not.
+
+import os
+if os.environ["DISPLAY"] == ':0.0':
     import matplotlib
     matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 
 # TODO: edit with retrieve_vars
@@ -2267,13 +2389,7 @@ def run_experiment_folder(folderpath):
 # something like this 
 # run on remote gpu and cpu.
 # TODO: run thsi locally or remotely. the gpu one takes more care.
-def run_on_gpu():
-    pass
 
-
-
-def run_on_cpu():
-    pass
 
 # have to hide the model for this.
 
@@ -2578,7 +2694,7 @@ def wait(x, units='s'):
 
 # # TODO: still have to do the retraining for CONLL-2003
 
-# an easierway of doing named tuples with the same name of the variable.
+# an easier way of doing named tuples with the same name of the variable.
 # 
 
 # simple scripts for working with video and images.
@@ -4186,8 +4302,6 @@ def wait(x, units='s'):
 # NOTE: it mostly makes sense to get stuff from the server to the 
 # local host.
 
-# TODO: add function to flatten a dictionary.
-# and perhaps functions to go in the other directions.
 
 # basically there is stuff on the upload link, and there is stuff on the 
 # download link. on the upload link, I just want to sync some of the 
@@ -4225,3 +4339,205 @@ def wait(x, units='s'):
 # generate a file many times.
 
 # TODO: add to the toolbox functionality to tune the step size.
+
+
+### older stuff that has been moved.
+
+# TODO: difference between set and define.
+# set if only exists.
+# define only if it does not exist.
+# both should have concrete ways of doing things.
+
+### 
+
+
+# NOTE: this part here can be improved.
+# NOTE: for now, this is just going to use a single gpu for each time. 
+
+# doing double ssh to 
+
+# TODO: check that you get the right prompt rather than something else.
+# NOTE: certain things may be troublesome because of escaping the commands 
+# correctly and stuff like that. I don't think that that would be 
+# handled by itself.
+# having that into account in the command passed may be a little troublesome.
+
+# I need to handle this some how.
+# there are cases where I can just run ssh directly.
+
+
+
+# it is better to pass a user name.
+
+# NOTE: prompting for password does not make much sense.
+# gpu_memory_total
+# gpu_memory_free
+### TODO: add something to query how much memory is it 
+# being used there.
+
+# memory_total
+# memory_free
+
+# TODO: perhaps it is possible to run the model in such a way that makes 
+# it easy to wait for the end of the process, and then just gets the results.
+# for example, it puts it on the server, sends the command, and waits for 
+# it to terminate. gets the data everytime.
+
+# it has to connect for this...
+
+# TODO: the question is which are the cpus that are free. 
+# NOTE: it is a good idea to think about one ssh call as being one remote 
+# function call.
+
+# in the generation of calls lines, it is a good idea to see other aspects.
+
+# also return the gpus that are free.
+
+# TODO: should also be easy to check 
+
+# it ssh for this.
+
+# ignore the GPUs that are down.
+# add functionality to use server if resources are available.
+
+# what if something does not succeed, it still gives back something relevant.
+
+## TODO: get to the point were I can just push something to the server 
+# and it would work.
+
+# TODO: perhaps it is possible to get things to stop if one of the 
+# them is not up.
+# I'm sure that this is going to fail multiple times.
+
+# TODO: just do it for a single machine. try a random machine a do it for that
+# one. it is simpler.
+
+# TODO: group by and ungroup by in dictionaries. this is important.
+
+# these tree wise dictionaries
+
+# it is always based on the element. 
+# for example, I think.
+
+# it has to be a 
+
+# this is nice for dictionary exploration
+
+
+
+
+
+
+# ideally, you just want to run things once.
+# also, perhaps, I would like to just point at the folder and have it work.
+
+
+
+### this has to be done better.
+
+# read prompt for password_prompt
+
+
+    # not quit because it is going to be one for each computer.
+
+    # dictionary has to match there.
+
+
+# I wonder if this works or not.
+
+# it would be interesting to check if I can 
+
+
+# get_resource_availability_on_lithium
+
+
+# for the ones with a scheduler, it should be possible to do this easily without
+# having to worry about querying for the resources.
+
+
+# I will need to wrap this as a string. I need to be careful about it.
+
+    # write the script once, and then remove it. be careful about this.
+
+    # ssh -t negrinho@
+    # "negrinho@128.2.211.186"
+
+    # try to do it for a single one, and then run on it.
+    # do not have my username in it.
+    
+    # go there, and print something 
+    # there should exist code to distribute 
+    # things easily.
+
+    # NOTE: even just doing something like doing 
+    # ssh once and getting all the data may be interesting
+    # can I do that.
+
+    # it is better if I can do it directly.
+
+    # the laucnh script for a task needs to be easy.
+    
+    # just the creation the com
+    pass
+
+# NOTE: to get the available processors and gpus, it is necessary to be 
+# careful about memory tool. I think 
+
+# NOTE: may require a python multi line command. otherwise, just put in some 
+# script and then erase it.
+
+# NOTE: on lithium I have to write nohup things.
+# running on lithium is kind of tricky. more sshs.
+# NOTE: that a command is always to be ran on a specific node.
+# I want to get information about this node. what is the problem, 
+# not for every time
+
+# TODO: develop functions to look at the most recent experiments, or the files
+# that were change most recently.
+
+# also stuff to look into the toolbox.
+# the plug and play to make the experience 
+
+# check multiples of two, powers of two, different powers too.
+
+# stuff for adapting the step size. that is nice.
+
+# remember that all these are ran locally.
+
+# the commands are only pushed to the server for execution.
+
+# easy to do subparsers and stuff, as we can always do something to
+# put the subparsers in the same state are the others.
+# can use these effectively.
+
+# TODO: add something to run periodically. for example, to query the server
+# or to sync folders. this would be useful.
+
+# TODO: split these commands in parts that I can use individually.
+# for example, I think that it is a good idea to 
+# split into smaller files. 
+# 3-7; not too many though.
+
+# TODO: it is possible to have something that sync folders
+# between two remote hosts, but it would require using the 
+# current computer for that.
+
+# TODO: get it to a point where I can call everything from the command line.
+
+# to extract what I need to get, I only need to to use the model
+# very simply.
+
+# add error checking 
+
+# TODO: check output or make sure that things are working the correct way.
+# it may be preferable to do things through ssh sometimes, rather than 
+# use some of the subprocess with ssh.
+
+# NOTE: it is important to be on the lookout for some problems with the 
+# current form of the model. it may happen that things are not properly 
+# between brackets. this part is important
+
+# there is questions about being interactive querying what there is still 
+# to do there.
+
+# there is only part of the model that it is no up. this is better.
