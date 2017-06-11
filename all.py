@@ -77,6 +77,29 @@ def recursive_flatten(p):
             xs.extend( recursive_flatten(k_p) )
         return xs
 
+def recursive_map(p, fn):
+    assert isinstance(p, dict) or isinstance(p, list)
+
+    if isinstance(p, list):
+        return map(fn, p)
+    else:
+        return {k : recursive_map(k_p, fn) for (k, k_p) in p.iteritems()}
+ 
+def flatten_nested_list(xs):
+    assert isinstance(xs, list)
+
+    xs_res = []
+    for x_lst in xs:
+        assert isinstance(x_lst, list)
+        xs_res.extend(x_lst)
+    return xs_res
+
+def zip_toggle(xs):
+    """[[x1, ...], [x2, ...], [x3, ...]] --> [(x1, x2, .., xn) ... ];
+        [(x1, x2, .., xn) ... ] --> [[x1, ...], [x2, ...], [x3, ...]]"""
+    assert isinstance(xs, list)
+    return zip(*xs)
+
 def key_union(ds):
     ks = []
     for d in ds:
@@ -182,9 +205,9 @@ def read_jsonfile(fpath):
         d = json.load(f)
         return d
 
-def write_jsonfile(d, fpath):
+def write_jsonfile(d, fpath, sort_keys=False):
     with open(fpath, 'w') as f:
-        json.dump(d, f, indent=4)
+        json.dump(d, f, indent=4, sort_keys=sort_keys)
 
 def read_picklefile(fpath):
     with open(fpath, 'rb') as f:
@@ -247,13 +270,10 @@ def file_exists(path):
 def folder_exists(path):
     return os.path.isdir(path)
 
-# NOTE: this is not done.
 def create_file(filepath,
         abort_if_exists=True, create_parent_folders=False):
     assert create_parent_folders or folder_exists(path_prefix(filepath))
     assert not (abort_if_exists and file_exists(filepath))
-
-    raise NotImplementedError
 
     if create_parent_folders:
         create_folder(path_prefix(filepath),
@@ -436,10 +456,10 @@ def now(omit_date=False, omit_time=False, time_before_date=False):
 
     date_s = ''
     if not omit_date:
-        date_s = "%s-%s-%s" % (d.year, d.month, d.day)
+        date_s = "%d-%.2d-%.2d" % (d.year, d.month, d.day)
     time_s = ''
     if not omit_time:
-        time_s = "%s:%s:%s" % (d.hour, d.minute, d.second)
+        time_s = "%.2d:%.2d:%.2d" % (d.hour, d.minute, d.second)
     
     vs = []
     if not omit_date:
@@ -1310,7 +1330,7 @@ def sync_local_folder_from_remote(src_folderpath, dst_folderpath,
 # NOTE: this does not work. TODO: check if there is a display associated or not.
 
 import os
-if os.environ["DISPLAY"] == ':0.0':
+if "DISPLAY" not in os.environ or os.environ["DISPLAY"] == ':0.0':
     import matplotlib
     matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -1703,7 +1723,6 @@ def keep_short_sentences(sents, maxlen):
     return [s for s in sents if len(s) <= maxlen]
 # TODO: change this for sequences maybe. simpler.
 
-
 def count_tokens(sents):
     tk_to_cnt = {}
     for s in sents:
@@ -1714,10 +1733,13 @@ def count_tokens(sents):
                 tk_to_cnt[tk] = 1
     return tk_to_cnt
 
-def keep_most_frequent(tk_to_cnt, num_tokens):
+def keep_most_frequent_tokens(tk_to_cnt, num_tokens):
     top_items = sorted(tk_to_cnt.items(), 
         key=lambda x: x[1], reverse=True)[:num_tokens]
     return dict(top_items)
+
+def remove_rare_tokens(tk_to_cnt, keep_thres):
+    return {tk : c for (tk, c) in tk_to_cnt.iteritems() if c >= keep_thres}
 
 def index_tokens(tokens, start_index=0):
     assert start_index >= 0
@@ -1728,6 +1750,14 @@ def index_tokens(tokens, start_index=0):
 def reverse_mapping(a_to_b):
     b_to_a = dict([(b, a) for (a, b) in a_to_b.iteritems()])
     return b_to_a
+
+def reverse_nonunique_mapping(a_to_b):
+    d = {}
+    for (x, y) in a_to_b.iteritems():
+        if y not in d:
+            d[y] = []
+        d[y].append(x)
+    return d
 
 def preprocess_sentence(sent, tk_to_idx, 
     unk_idx=-1, bos_idx=-1, eos_idx=-1, 
@@ -2548,10 +2578,6 @@ def wait(x, units='s'):
 # capture all output and make it go to the 
 
 # I don't think that I will need it.
-
-# --- something like this 
-# run_on_gpu(host_name, server_name):
-# run_on_cpu():
 
 # some can be done through POpen or something like that.
 
@@ -4541,3 +4567,81 @@ def wait(x, units='s'):
 # to do there.
 
 # there is only part of the model that it is no up. this is better.
+
+# there is more stuff that can go into the toolbox, but for now, I think that 
+# this is sufficient to do what I want to do.
+
+# add stuff for error analysis.
+
+# TODO: functionality for periodically running some function.
+
+# TODO: more functionality to deal with the experiment folders.
+
+# for reading and writiing csv files, it is interesting to consider the existing 
+# csv functionality in python
+
+# look at interfacing nicely with pandas for some dataframe preprocessing.  
+
+# add stuff to zip and unzip lists of tuples.
+
+# NOTE: neat tools for packing and unpacking are needed. this is necessary 
+# to handle this information easily.
+
+# TODO: mapping the experiment folder can perhaps be done differently as this is 
+# not very interesting. 
+
+# dealing with multiple dictionaries without merging them.
+
+# going over something and creating a list out of it through function 
+# calls, I think that is the best way of going.
+
+# NOTE: some of these functions to recursively toggle things can go into my 
+# toolbox.
+
+# TODO: a recursive iterator.
+# recursive map.
+
+# NOTE: a list is like a nested dictionary with indices, so it 
+# should work the same way.
+
+# NOTE: for flatten and stuff like that, I can add some extra parts to the model
+# that should work nicely, for example, whether it is a list of lists 
+# or not. that is nicer.
+
+# there are also iterators, can be done directly. this is valid, like 
+# [][][][][]; returns a tuple of that form. (s, s, ... )
+# this should work nicely.
+
+# question about iterator and map, 
+# I think that based on the iterator, I can do the map, but it is probably 
+# a bit inefficient. I think that 
+
+# the important thing is copying the structure.
+
+# NOTE: some of these recursive functions can be done with a recursive map.
+
+# most support for dictionaries and list and nested mixtures of both.
+# although, I think that dictionaries are more useful.
+
+# could I flatten one of these dictionaries or not. 
+# this is something important.
+
+# TODO: it would be nice to register a set of function to validate that 
+# the argument that was provided is valid. this can be done through 
+# support of the interface.
+
+# TODO: make it easier to transfer a whole experiment folder to the server and 
+# execute it right way.
+
+# it seems that training with momentum 
+
+# it seems premature to try a lot of different optimization parameters until
+# you have seen that something works.
+
+# develop tools for model inspection.
+
+# TODO: some of the patterns about running somewhere and then 
+
+# TODO: running batch of jobs needs to be done with with a name for convenience.
+
+# TODO: some easy interface to regular expressions.
