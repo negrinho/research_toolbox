@@ -114,6 +114,16 @@ def key_intersection(ds):
         ks.intersection_update(d.keys())
     return list(ks)
 
+# NOTE: right now, this is done for dictionaries with hashable values.
+def key_to_values(ds):
+    out_d = {}
+    for d in ds:
+        for (k, v) in d.iteritems():
+            if k not in out_d:
+                out_d[k] = set()
+            out_d[k].add(v)
+    return out_d
+
 def retrieve_values(d, ks, fmt_tuple=False):
     out_d = {}
     for k in ks:
@@ -289,7 +299,8 @@ def create_folder(folderpath,
     assert create_parent_folders or folder_exists(path_prefix(folderpath))
     assert not (abort_if_exists and folder_exists(folderpath))
 
-    os.makedirs(folderpath)
+    if not folder_exists(folderpath):
+        os.makedirs(folderpath)
 
 def copy_file(src_filepath, dst_filepath, 
         abort_if_dst_exists=True, create_parent_folders=False):
@@ -967,7 +978,8 @@ def get_lithium_resource_availability(servername, username, password=None,
 # running on one of the compute nodes.
 # NOTE: this function has minimum error checking.
 def run_on_lithium_node(bash_command, node, servername, username, password=None, 
-        visible_gpu_ids=None, folderpath=None, wait_for_output=True):
+        visible_gpu_ids=None, folderpath=None, 
+        wait_for_output=True, run_on_head_node=False):
 
     # check that node exists.
     assert node in flatten( get_lithium_nodes() )
@@ -982,40 +994,195 @@ def run_on_lithium_node(bash_command, node, servername, username, password=None,
     
     # creating the command to run remotely.
     gpu_cmd = 'export CUDA_VISIBLE_DEVICES=%s' % ",".join(map(str, visible_gpu_ids))
-    cmd = "ssh -T %s \'%s && %s\'" % (node, gpu_cmd, bash_command)
+    if not run_on_head_node:
+        cmd = "ssh -T %s \'%s && %s\'" % (node, gpu_cmd, bash_command)
+    else:
+        # NOTE: perhaps repetition could be improved here. also, probably head 
+        # node does not have gpus.
+        cmd = "%s && %s" % (gpu_cmd, bash_command)
 
     return run_on_server(cmd, **retrieve_values(locals(), 
         ['servername', 'username', 'password', 'folderpath', 'wait_for_output']))
     
+# NOTE: this may require adding some information to the server.
+# NOTE: if any of the command waits for output, it will mean that 
+# it is going to wait until completion of that command until doing the other 
+# one.
+# NOTE: add options about 
+# NOTE: as lithium does not have a scheduler, resource management has to be done
+# manually. This one has to prompt twice.
+# NOTE: the time budget right now does not do anything.
+
+# TODO: password should be input upon running, perhaps.
+# TODO: run on head node should not be true for these, because I 
+# do all the headnode information here.
+# TODO: perhaps add head node functionality to the node part, but the problem 
+# is that I don't want to have those there.
+# TODO: this is not very polished right now, but it should  be useful nonetheless.
+class LithiumRunner:
+    def __init__(self, servername, username, password=None, 
+            only_run_if_can_run_all=True):
+        self.servername = servername
+        self.username = username
+        self.password = password if password is not None else get_password()
+        self.jobs = []
+
+    def register(self, bash_command, num_cpus=1, num_gpus=0, 
+        mem_budget=8.0, time_budget=60.0, mem_units='gb', time_units='m', 
+        folderpath=None, wait_for_output=True, 
+        require_gpu_types=None, require_nodes=None, run_on_head_node=False):
+
+        # NOTE: this is not implemented for now.
+        assert not run_on_head_node
+        
+        # should not specify both.
+        assert require_gpu_types is None or require_nodes is None
+
+        self.jobs.append( retrieve_values(locals(), 
+            ['bash_command', 'num_cpus', 'num_gpus', 
+            'mem_budget', 'time_budget', 'mem_units', 'time_units', 
+            'folderpath', 'wait_for_output', 
+            'require_gpu_types', 'require_nodes', 'run_on_head_node']) )
+
+    def run(self, run_only_if_enough_resources_for_all=True):
+        args = retrieve_values(vars(self), ['servername', 'username', 'password'])
+        args['abort_if_any_node_unavailable'] = False
+
+        # get the resource availability and filter out unavailable nodes.
+        d = get_lithium_resource_availability( **args )
+        d = { k : v for (k, v) in d.iteritems() if v is not None }
+        
+        g = get_lithium_nodes()
+
+        # assignments to each of the registered jobs
+        run_cfgs = []
+        for x in self.jobs:
+            if x['require_nodes'] is not None:
+                req_nodes = x['require_nodes']  
+            else: 
+                req_nodes = d.keys()
+
+            # based on the gpu type restriction.
+            if x['require_gpu_types'] is not None:
+                req_gpu_nodes = flatten(
+                    retrieve_values(g, x['require_gpu_types']) )
+            else:
+                # NOTE: only consider the nodes that are available anyway.
+                req_gpu_nodes = d.keys()
+            
+            # potentially available nodes to place this job.
+            nodes = list( set(req_nodes).intersection(req_gpu_nodes) )
+            assert len(nodes) > 0
+
+            # greedy assigned to a node.
+            assigned = False
+            for n in nodes:
+                r = d[n] 
+                # if there are enough resources on the node, assign it to the 
+                # job.
+                if (( r['cpus_free'] >= x['num_cpus'] ) and 
+                    ( r['gpus_free'] >= x['num_gpus'] ) and 
+                    ( r['mem_mbs_free'] >= 
+                        convert_between_byte_units( x['mem_budget'], 
+                            src_units=x['mem_units'], dst_units='mb') ) ):  
+
+                    # record information about where to run the job.
+                    run_cfgs.append( {
+                        'node' : n, 
+                        'visible_gpu_ids' : r['free_gpu_ids'][ : x['num_gpus'] ]} )
+
+                    # deduct the allocated resources from the available resources
+                    # for that node.
+                    r['cpus_free'] -= x['num_cpus']
+                    r['gpus_free'] -= x['num_gpus']
+                    r['mem_mbs_free'] -= convert_between_byte_units(
+                        x['mem_budget'], src_units=x['mem_units'], dst_units='mb')
+                    r['free_gpu_ids'] = r['free_gpu_ids'][ x['num_gpus'] : ]
+                    assigned = True
+                    break
+            
+            # if not assigned, terminate without doing anything.
+            if not assigned:
+                run_cfgs.append( None )
+                if run_only_if_enough_resources_for_all:
+                    print ("Insufficient resources to satisfy"
+                        " (cpus=%d, gpus=%d, mem=%0.3f%s)" % (
+                        x['num_cpus'], x['num_gpus'], 
+                        x['mem_budget'], x['mem_units'] ) )
+                    return None
+
+        # running the jobs that have a valid config.
+        remaining_jobs = []
+        outs = []
+        for x, c in zip(self.jobs, run_cfgs):
+            if c is None:
+                remaining_jobs.append( x )
+            else:
+                out = run_on_lithium_node( **merge_dicts([
+                    retrieve_values(vars(self),
+                        ['servername', 'username', 'password'] ),
+                    retrieve_values(x, 
+                        ['bash_command', 'folderpath', 
+                        'wait_for_output', 'run_on_head_node'] ),
+                    retrieve_values(c, 
+                        ['node', 'visible_gpu_ids'] ) ]) 
+                )
+                outs.append( out )
+
+        # keep the jobs that 
+        self.jobs = remaining_jobs
+        return outs
 
 
-# be careful about running things in the background.
-# the point is that perhaps I can run this command in 
-# the background, which may actually work. that would be something interesting 
-# to see if th 
-
-    pass
-
-    # run on the model.
-
-# NOTE: there may exist problems due to race conditions, but this can be 
-# solved later.
-
-# the command should be similar. 
+# try something like a dry run to see that this is working.
 
 
-# this has to work harder to see that it is doing the right thing.
-def run_on_lithium(bash_command_lst, servername, username, password=None, 
-        num_cpus_lst=1, num_gpus_lst=0, folderpath=None, 
-        wait_for_output=True, require_gpu_types=None, require_nodes=None,
-        run_on_head_node=False):
 
-        # folderpath=None, wait_for_output=True, prompt_for_password=False
+            # set. to do an intersection of this model.
 
-    if password == None and prompt_for_password:
-        password = getpass.getpass()
+# what happens if some node is unnavailable.
+# TODO: I need to parse these results.
+            
+
+### what to do in this part of the model.
+# def run_on_lithium_node(bash_command, node, servername, username, password=None, 
+#         visible_gpu_ids=None, folderpath=None, wait_for_output=True):
+
+#     # check that node exists.
+#     assert node in flatten( get_lithium_nodes() )
+
+#     # prompting for password if asked about. (because lithium needs password)
+#     if password == None:
+#         password = getpass.getpass()
+
+#     # if no visilbe gpu are specified, it creates a list with nothing there.
+#     if visible_gpu_ids is None:
+#         visible_gpu_ids = []
+    
+#     # creating the command to run remotely.
+#     gpu_cmd = 'export CUDA_VISIBLE_DEVICES=%s' % ",".join(map(str, visible_gpu_ids))
+#     cmd = "ssh -T %s \'%s && %s\'" % (node, gpu_cmd, bash_command)
+
+#     return run_on_server(cmd, **retrieve_values(locals(), 
+#         ['servername', 'username', 'password', 'folderpath', 'wait_for_output']))
+
+# question about which one to do now.
+# 
 
 
+# there is also a question about what should be done in the case where there 
+# are not many resources.
+
+    # something to register a command to run.
+
+    ### pass
+
+    # as soon as a command is sent to the server, it is removed from the 
+    # list.
+    
+
+## TODO: do a lithium launcher that manages the resources. this makes 
+# it easier.
 
 
 # essentially, try a bunch 
@@ -1047,6 +1214,37 @@ def run_on_lithium(bash_command_lst, servername, username, password=None,
 
 
 
+
+# single function that is going to terminate if it does not have sufficient 
+# resources.
+
+    # this is useful to run mulitple processes at once.
+    # NOTE: this is part of the code that is useful to work with different 
+    # parts of the model.
+    # for i in xrange(num_workers):
+    #     cmd = '%s %d %d' % (run_relfilepath, i, num_workers)
+    #     tb.run_on_matrix(cmd, servername, username, password, 
+    #         mem_budget=mem_gbs, time_budget=time_m,
+    #         folderpath=proj_folderpath)
+    #     print cmd
+
+
+
+# be careful about running things in the background.
+# the point is that perhaps I can run this command in 
+# the background, which may actually work. that would be something interesting 
+# to see if th 
+
+    pass
+
+    # run on the model.
+
+# NOTE: there may exist problems due to race conditions, but this can be 
+# solved later.
+
+# the command should be similar. 
+
+
 # # # probably needs to exit if there are no available cpus.
 
 # # # needs to figure out a gpu.
@@ -1064,10 +1262,10 @@ def run_on_lithium(bash_command_lst, servername, username, password=None,
 # succeed. NOTE that only the last one is affect. I can bracket to make 
 # sure that things work properly. this is nice.
 def run_on_matrix(bash_command, servername, username, password=None, 
-        num_cpus=1, num_gpus=0, mem_budget=8.0, time_budget=60.0,
-        mem_units='gb', time_units='m', 
+        num_cpus=1, num_gpus=0, 
+        mem_budget=8.0, time_budget=60.0, mem_units='gb', time_units='m', 
         folderpath=None, wait_for_output=True, 
-        require_gpu_type=None, run_on_head_node=False):
+        require_gpu_type=None, run_on_head_node=False, jobname=None):
 
     assert (not run_on_head_node) or num_gpus == 0
     assert require_gpu_type is None ### NOT IMPLEMENTED YET.
@@ -1081,14 +1279,19 @@ def run_on_matrix(bash_command, servername, username, password=None,
     
     # either do the call using sbatch, or run directly on the head node.
     if not run_on_head_node:
-        run_script_cmd = ' '.join([ 'sbatch', 
+        cmd_parts = [ 'sbatch', 
             '--cpus-per-task=%d' % num_cpus,
             '--gres=gpu:%d' % num_gpus,
             '--mem=%d' % convert_between_byte_units(mem_budget, 
                 src_units=mem_units, dst_units='mb'),
             '--time=%d' % convert_between_time_units(time_budget, 
-                time_units, dst_units='m'),
-            script_name ])
+                time_units, dst_units='m') ]
+        if jobname is not None:
+            cmd_parts += ['--job-name=%s' % jobname] 
+        cmd_parts += [script_name]
+
+        run_script_cmd = ' '.join(cmd_parts)
+
     else:
         run_script_cmd = script_name    
 
@@ -1102,6 +1305,9 @@ def run_on_matrix(bash_command, servername, username, password=None,
     return run_on_server(remote_cmd, **retrieve_values(
         locals(), ['servername', 'username', 'password', 
             'folderpath', 'wait_for_output']) )
+
+
+# TODO: if something does not work, 
 
 
 # def run_on_bridges(bash_command, servername, username, password, num_cpus=1, num_gpus=0, password=None,
@@ -1908,6 +2114,8 @@ def create_runall_script(exp_folderpath):
     exec_bits = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
     os.chmod(out_filepath, st.st_mode | exec_bits)
 
+# NOTE: for now, this relies on the fact that upon completion of an experiment
+# a results.json file is generated.
 def create_runall_script_with_parallelization(exp_folderpath):
     fo_names = list_folders(exp_folderpath, recursive=False, use_relative_paths=True)
     # print fo_names
@@ -1917,16 +2125,33 @@ def create_runall_script_with_parallelization(exp_folderpath):
     # creating the script.
     sc_lines = [
         '#!/bin/bash',
-        'if [ "$#" -ne 0 ] && [ "$#" -ne 2 ]; then',
-        '    echo "Usage: run.sh [worker_id num_workers]"',
+        'if [ "$#" -lt 0 ] && [ "$#" -gt 3 ]; then',
+        '    echo "Usage: run.sh [worker_id num_workers] [--force-rerun]"',
         '    exit 1',
         'fi',
-        'if [ $# -eq 2 ]; then',
-        '    worker_id=$1',
-        '    num_workers=$2',
-        'else',
+        'force_rerun=0',
+        'if [ $# -eq 0 ] || [ $# -eq 1 ]; then',
         '    worker_id=0',
         '    num_workers=1',
+        '    if [ $# -eq 1 ]; then',
+        '        if [ "$1" != "--force-rerun" ]; then',
+        '            echo "Usage: run.sh [worker_id num_workers] [--force-rerun]"',
+        '            exit 1',
+        '        else',
+        '            force_rerun=1',
+        '        fi',
+        '    fi',
+        'else',
+        '    worker_id=$1',
+        '    num_workers=$2',
+        '    if [ $# -eq 3 ]; then',
+        '        if [ "$3" != "--force-rerun" ]; then',
+        '            echo "Usage: run.sh [worker_id num_workers] [--force-rerun]"',
+        '            exit 1',
+        '        else',
+        '            force_rerun=1',
+        '        fi',
+        '    fi',
         'fi',
         'if [ $num_workers -le $worker_id ] || [ $worker_id -lt 0 ]; then',
         '    echo "Invalid call: requires 0 <= worker_id < num_workers."',
@@ -1936,9 +2161,12 @@ def create_runall_script_with_parallelization(exp_folderpath):
         'num_exps=%d' % num_exps,
         'i=0',
         'while [ $i -lt $num_exps ]; do',
-        '    if [ $(($i % $num_workers)) -eq $worker_id ]; then',
-        '        echo cfg$i',
-        '        %s' % join_paths([exp_folderpath, "cfg$i", 'run.sh']),
+        '    if [ $(($i %% $num_workers)) -eq $worker_id ]; then',
+        '        if [ ! -f %s ] || [ $force_rerun -eq 1 ]; then' % join_paths(
+                    [exp_folderpath, "cfg$i", 'results.json']),
+        '            echo cfg$i',
+        '            %s' % join_paths([exp_folderpath, "cfg$i", 'run.sh']),
+        '        fi',
         '    fi',
         '    i=$(( $i + 1 ))',
         'done'
@@ -1950,6 +2178,7 @@ def create_runall_script_with_parallelization(exp_folderpath):
     st = os.stat(out_filepath)
     exec_bits = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
     os.chmod(out_filepath, st.st_mode | exec_bits)
+
 
 # NOTE: not the perfect way of doing things, but it is a reasonable way for now.
 # main_relfilepath is relative to the project folder path.
@@ -2101,6 +2330,7 @@ def create_project_folder(folderpath, project_name):
     # model evaluation, main to generate the results with different relevant 
     # parameters, setting up different experiments, analyze the results and 
     # generate plots and tables.
+    create_file( fn( [project_name, "__init__.py"] ) )
     create_file( fn( [project_name, "data.py"] ) )
     create_file( fn( [project_name, "preprocess.py"] ) )
     create_file( fn( [project_name, "model.py"] ) )    
@@ -2110,6 +2340,45 @@ def create_project_folder(folderpath, project_name):
     create_file( fn( [project_name, "experiment.py"] ) )
     create_file( fn( [project_name, "analyze.py"] ) )
 
+    # add an empty script that can be used to download data.
+    create_file( fn( ["data", "download_data.py"] ) )
+
+    # common notes to keep around.
+    create_file( fn( ["notes", "journal.txt"] ) )    
+    create_file( fn( ["notes", "reading_list.txt"] ) )    
+    create_file( fn( ["notes", "todos.txt"] ) )    
+
+    # placeholders
+    write_textfile( fn( ["experiments", "readme.txt"] ), 
+        ["All experiments will be placed under this folder."] )
+    write_textfile( fn( ["temp", "readme.txt"] ), 
+        ["Here lie temporary files that are relevant or useful for the project "
+        "but that are not kept under version control."] )
+
+    # typical git ignore file.
+    write_textfile( fn( [".gitignore"] ), 
+        ["data", "experiments", "temp", "*.pyc", "*.pdf", "*.aux"] )
+    
+    subprocess.call("cd %s && git init && git add -f .gitignore * && "
+        "git commit -a -m \"Initial commit for %s.\" && cd -" % ( 
+            fn( [] ), project_name), shell=True)
+    
+
+
+# TODO: add options to directly initialize a git repo.
+
+
+# NOTE: this can be done differently and have options that determine if something 
+# is done or not.
+    # TODO: changes into the folder that I care about, runs something and 
+    # returns to where I was before.
+    # subprocess.call(["cd && "])
+
+# TODO: I think that it would be nice to have some utility scripts that can 
+# be directly added to the model.
+
+# for example, scripts to download the data that you care about. 
+# git ignore.
 
 ### string manipulation
 def wrap_strings(s):
@@ -4450,7 +4719,7 @@ def wait(x, units='s'):
 # this is nice for dictionary exploration
 
 
-
+# TODO: it is probably a good idea to keep information about the model.
 
 
 
@@ -4645,3 +4914,17 @@ def wait(x, units='s'):
 # TODO: running batch of jobs needs to be done with with a name for convenience.
 
 # TODO: some easy interface to regular expressions.
+
+# TODO: stuff to inspect the examples and look at the ones that have the most 
+# mistakes. this easily done by providing a function
+
+# TODO: there are problems about making this work.
+
+# something can be done through environment variables, although I don't like 
+# it very much.
+
+# there is stuff that needs interfacing with running experiments. that is the 
+# main use of this part of this toolbox.
+
+# think about returning the node and the job id, such that I can kill those 
+# job easily in case of a mistake.
