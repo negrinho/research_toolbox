@@ -23,10 +23,26 @@ def partial_apply(fn, d):
 
 ### dictionary manipulation
 import pprint
+import pandas
 
 def create_dict(ks, vs):
     assert len(ks) == len(vs)
     return dict(zip(ks, vs))
+
+def create_dataframe(ds, abort_if_different_keys=True):
+    ks = key_union(ds)
+    assert (not abort_if_different_keys) or len( key_intersection(ds) ) == len( ks ) 
+
+    df_d = {k : [] for k in ks }
+    for d in ds:
+        for k in ks:
+            if k not in d:
+                df_d[k].append( None )
+            else:
+                df_d[k].append( d[k] )
+    
+    df = pandas.DataFrame(df_d)
+    return df
 
 def merge_dicts(ds):
     out_d = {}
@@ -46,7 +62,6 @@ def groupby(xs, fn):
             d[fx] = []
 
         d[fx].append(x)
-    
     return d
 
 def flatten(d):
@@ -84,7 +99,39 @@ def recursive_map(p, fn):
         return map(fn, p)
     else:
         return {k : recursive_map(k_p, fn) for (k, k_p) in p.iteritems()}
- 
+
+def recursive_index(d, ks):
+    for k in ks:
+        d = d[k]
+    return d
+
+def filter_dict(d, fn):
+    return { k : v for (k, v) in d.iteritems() if fn(k, v) }
+
+def map_dict(d, fn):
+    return { k : fn(k, v) for (k, v) in d.iteritems() }
+
+def structure(ds, ks):
+    get_fn = lambda k: lambda x: x[k]
+
+    for k in ks:
+        ds = recursive_groupby(ds, get_fn(k))
+    return ds
+
+def structure_with_fns(ds, fns):
+    for fn in fns:
+        ds = recursive_groupby(ds, fn)
+    return ds
+
+def get_subset_indexing_fn(ks, tuple_fmt=True):
+    def fn(d):
+        assert isinstance(d, dict)
+        out = [d[k] for k in ks]
+        if tuple_fmt:
+            out = tuple(out)
+        return out
+    return fn
+
 def flatten_nested_list(xs):
     assert isinstance(xs, list)
 
@@ -237,8 +284,8 @@ def read_csvfile(fpath, sep=',', has_header=True):
 def write_csvfile(ds, fpath, sep=',',
         write_header=True, abort_if_different_keys=True):
 
-    ks = tb.key_union(ds)
-    assert (not abort_if_different_keys) or len( tb.key_intersection(ds) ) == len(ks)
+    ks = key_union(ds)
+    assert (not abort_if_different_keys) or len( key_intersection(ds) ) == len(ks)
 
     lines = []
     if write_header:
@@ -247,7 +294,7 @@ def write_csvfile(ds, fpath, sep=',',
     for d in ds:
         lines.append( sep.join([str(d[k]) if k in d else '' for k in ks]) )
 
-    tb.write_textfile(fpath, lines)
+    write_textfile(fpath, lines)
 
 # check if files are flushed automatically upon termination, or there is 
 # something else that needs to be done. or maybe have a flush flag or something.
@@ -1687,6 +1734,10 @@ def generate_latex_table(mat, num_places, row_labels=None, column_labels=None,
     if show:
         print table
 
+
+
+
+
 ### sequences, schedules, and counters (useful for training)
 import numpy as np
 
@@ -2004,6 +2055,8 @@ def preprocess_sentence(sent, tk_to_idx,
 # featurization
 # 
 
+# subset featurizers, and simple ways of featurizing models.
+
 # features from side information.
 # this is kind of a bipartite graph.
 # each field may have different featurizers
@@ -2012,6 +2065,9 @@ def preprocess_sentence(sent, tk_to_idx,
 # one featurizer may be used across fields.
 # featurizers may have a set of fields, and should be able to handle these 
 # easily.
+
+# features from history.
+# features from different types of data. it should be easy to integrate.
 
 # easy to featurize sets of elements, 
 
@@ -2161,7 +2217,7 @@ def create_runall_script_with_parallelization(exp_folderpath):
         'num_exps=%d' % num_exps,
         'i=0',
         'while [ $i -lt $num_exps ]; do',
-        '    if [ $(($i %% $num_workers)) -eq $worker_id ]; then',
+        '    if [ $(($i % $num_workers)) -eq $worker_id ]; then',
         '        if [ ! -f %s ] || [ $force_rerun -eq 1 ]; then' % join_paths(
                     [exp_folderpath, "cfg$i", 'results.json']),
         '            echo cfg$i',
@@ -2882,18 +2938,9 @@ def wait(x, units='s'):
 
 # TODO: stuff for using Tensorflow and PyTorch and Tensorboard.
 
-# add stuff for json. it may be simpler to read.
-
-# to do remote calls, it seems fairly simple. just use the subprocess part of the 
-# model.
-
-# also, with some form of namespaces for model.
-
 # choose whether to print to the terminal or to a file.
 # this can be done in the memer. 
 # I think that a single line is enough to get this working.
-
-# code for running stuff remotely may be interesting.
 
 # better dictionary indexing and stuff like that.
 
@@ -2902,7 +2949,6 @@ def wait(x, units='s'):
 # there are probably some good ways of getting the configurations.
 # ideally, I think that it should be possible to sample configurations 
 # uniformly.
-
 
 # this should be something easy to do. 
 # it can be done with choose.
@@ -2917,8 +2963,6 @@ def wait(x, units='s'):
 # iter_product({'a' : [1,2,3], 'b' : [2,3,4]}) => directly to something.
 
 # change some number of pairs.
-
-# jio
 
 # what if they are named.
 
@@ -2943,7 +2987,6 @@ def wait(x, units='s'):
 
 # "import research_toolbox as tb; tb.run_experiment_folder("exp0", )
 
-
 # these iterations cycles are simple, but take some time to figure out.
 
 # depending on the dimensions.
@@ -2952,8 +2995,6 @@ def wait(x, units='s'):
 # do something that goes directly from DeepArchitect to a figure.
 
 # something between interface between DeepArchictect and a Figure.
-
-# stuff to copy directories and so forth.
 
 # use more consistent spelling
 
@@ -2986,8 +3027,6 @@ def wait(x, units='s'):
 # stuff to make or abort to create a directory.
 
 # iterate over all files matching a pattern. that can be done easily with re.
-
-# # TODO: still have to do the retraining for CONLL-2003
 
 # an easier way of doing named tuples with the same name of the variable.
 # 
@@ -3189,8 +3228,6 @@ def wait(x, units='s'):
 # communication and returning stuff can be done through dictionaries and stuff like 
 # that.
 
-# small toolbox of little things.
-
 # logging is going to be done through printing.
 
 # either returns one of these dictionaries or just changes it.
@@ -3239,9 +3276,6 @@ def wait(x, units='s'):
 # run on machine is mostly useful for remote machines, therefore 
 # you should should think about running things in the command line.
 # not Python commands.
-
-# def run_remotely():
-#     pass
 
 # # get the output in the form of a file. that is good.
 
@@ -3482,7 +3516,6 @@ def wait(x, units='s'):
 # 
 
 # function to filter out. 
-# just 
 
 # doing the same thing in multiple machines.
 
@@ -3708,9 +3741,7 @@ def wait(x, units='s'):
 # maybe wrap in a function.
 # gpu machines in lithium.
 
-
 # copying the code is a good idea for now.
-
 
 ### will need some configs for slurm. how to set things up.
 
@@ -3817,9 +3848,6 @@ def wait(x, units='s'):
 # the question is the type of run that we need and stuff like that
 # can I run a script that forks some number of jobs.
 # or can I have a script that run some fraction of the model
-
-# run.sh 0 .... njobs
-# run.sh all
 
 # temp, out and other things that are more temporary and for which your command
 # does not care too much.
@@ -4108,9 +4136,9 @@ def wait(x, units='s'):
 # generating easily the scripts for running on the machine. do not worry about 
 # having too much stuff now.
 
-# note, the parallel run script may not work there in the serverjk:w
+# note, the parallel run script may not work there in the server
 
-# TODO: I will need some form of managing experiments across projects.jk:w
+# TODO: I will need some form of managing experiments across projects.
 
 # handling the experiments some how. this would be possible easily.
 
@@ -4200,6 +4228,9 @@ def wait(x, units='s'):
 # extracting the requirements from running some command
 
 # manipulation of the model.
+
+# TODO: run functions from the command line. it can also list all functions.
+# not all are callable.
 
 # TODO: check how to fix the randomness for things such as tensorflow 
 # and other problems.
@@ -4546,14 +4577,9 @@ def wait(x, units='s'):
 # find a nice way of keeping track of the experiments having a certain 
 # configuration. it helps thinking about what I am doing.
 
-# NOTE: what is the advantage of using scp or rsync
-
 # TODO: use cases about making things work. 
 
 # sync two folders or multiple folders
-
-# --force-rerun option.
-# --skip if 
 
 # creation of all the models 
 
@@ -4704,11 +4730,6 @@ def wait(x, units='s'):
 # them is not up.
 # I'm sure that this is going to fail multiple times.
 
-# TODO: just do it for a single machine. try a random machine a do it for that
-# one. it is simpler.
-
-# TODO: group by and ungroup by in dictionaries. this is important.
-
 # these tree wise dictionaries
 
 # it is always based on the element. 
@@ -4725,67 +4746,6 @@ def wait(x, units='s'):
 
 # ideally, you just want to run things once.
 # also, perhaps, I would like to just point at the folder and have it work.
-
-
-
-### this has to be done better.
-
-# read prompt for password_prompt
-
-
-    # not quit because it is going to be one for each computer.
-
-    # dictionary has to match there.
-
-
-# I wonder if this works or not.
-
-# it would be interesting to check if I can 
-
-
-# get_resource_availability_on_lithium
-
-
-# for the ones with a scheduler, it should be possible to do this easily without
-# having to worry about querying for the resources.
-
-
-# I will need to wrap this as a string. I need to be careful about it.
-
-    # write the script once, and then remove it. be careful about this.
-
-    # ssh -t negrinho@
-    # "negrinho@128.2.211.186"
-
-    # try to do it for a single one, and then run on it.
-    # do not have my username in it.
-    
-    # go there, and print something 
-    # there should exist code to distribute 
-    # things easily.
-
-    # NOTE: even just doing something like doing 
-    # ssh once and getting all the data may be interesting
-    # can I do that.
-
-    # it is better if I can do it directly.
-
-    # the laucnh script for a task needs to be easy.
-    
-    # just the creation the com
-    pass
-
-# NOTE: to get the available processors and gpus, it is necessary to be 
-# careful about memory tool. I think 
-
-# NOTE: may require a python multi line command. otherwise, just put in some 
-# script and then erase it.
-
-# NOTE: on lithium I have to write nohup things.
-# running on lithium is kind of tricky. more sshs.
-# NOTE: that a command is always to be ran on a specific node.
-# I want to get information about this node. what is the problem, 
-# not for every time
 
 # TODO: develop functions to look at the most recent experiments, or the files
 # that were change most recently.
@@ -4821,6 +4781,8 @@ def wait(x, units='s'):
 
 # to extract what I need to get, I only need to to use the model
 # very simply.
+
+# TODO: understand better what is the pseudo tty about.
 
 # add error checking 
 
@@ -4864,9 +4826,6 @@ def wait(x, units='s'):
 # going over something and creating a list out of it through function 
 # calls, I think that is the best way of going.
 
-# NOTE: some of these functions to recursively toggle things can go into my 
-# toolbox.
-
 # TODO: a recursive iterator.
 # recursive map.
 
@@ -4892,17 +4851,12 @@ def wait(x, units='s'):
 # most support for dictionaries and list and nested mixtures of both.
 # although, I think that dictionaries are more useful.
 
-# could I flatten one of these dictionaries or not. 
-# this is something important.
-
-# TODO: it would be nice to register a set of function to validate that 
+# <IMPORTANT> TODO: it would be nice to register a set of function to validate that 
 # the argument that was provided is valid. this can be done through 
-# support of the interface.
+# support of the interface. improve command line interface.
 
 # TODO: make it easier to transfer a whole experiment folder to the server and 
 # execute it right way.
-
-# it seems that training with momentum 
 
 # it seems premature to try a lot of different optimization parameters until
 # you have seen that something works.
@@ -4910,8 +4864,6 @@ def wait(x, units='s'):
 # develop tools for model inspection.
 
 # TODO: some of the patterns about running somewhere and then 
-
-# TODO: running batch of jobs needs to be done with with a name for convenience.
 
 # TODO: some easy interface to regular expressions.
 
@@ -4928,3 +4880,129 @@ def wait(x, units='s'):
 
 # think about returning the node and the job id, such that I can kill those 
 # job easily in case of a mistake.
+
+# TODO: add stuff for coupled iteration. this is hard to do currently.
+# think about the structure code.
+
+# TODO: work on featurizers. this one should be simple to put together.
+
+# TODO: write filter for a dictionary.
+
+
+
+
+# Working with the configs, I think that that is interesting.
+# the folders do not matter so much, but I think that it is possible 
+# do a mirror of a list [i:]
+
+# TODO: can use ordered dict to write things to 
+
+# this would work nicely, actually. add this functionality.
+# no guarantees about the subtypes that are returned.
+# this could be problematic, but I think that I can manage.
+
+# TODO: the point about the checkpoints is that I can always analyse the 
+# results whenever I want.
+
+# <IMPORTANT> TODO: add more iterators, because that would be nice.
+
+# TODO: add logging functionality that allows to inspect the decisions of the 
+# model, for example, the scores that were produced or to re
+
+# TODO: implement.
+
+# generating two line tables. some filtering mechanisms along with 
+
+# TODO: add ML models unit tests.
+# like running for longer should improve performance.
+# performance should be within some part of the other.
+# do it in terms of the problems.
+
+# <IMPORTANT> TODO: logging of different quantities for debugging.
+# greatly reduce the problem.
+# copy the repository somewhere, for example, the debug experiments.
+
+# do it directly on main.
+
+# <IMPORTANT> TODO: simple interface with scikit-learn
+
+# unit tests are between different occurrences, or between different time steps.
+
+# TODO: these can be improved, this is also information that can be added 
+# to the dictionary without much effort.
+import platform
+
+def node_information():
+    return platform.node()
+
+
+### TODO: check the overfit test, meaning that I can 
+# 
+
+# loss debugging. they should go to zero.
+# easy way of incorporating this.
+
+# both at the same time.
+
+# TODO: dumb data for debugging. this is important to check that the model is working correctly.
+
+
+# TODO: a logging object.
+# can have a lot of state.
+
+# NOTE: how should logging look like? it should tell the path. of the model. where is being called, and the 
+# ids and stuff. 
+# inspection module.
+
+# conditions that should be verified for correctness. 
+# conditions that should be verified. 
+
+# how to inspect the results. perhaps have a good spreadsheet?
+
+# that would be nice.
+
+# TODO: for example, if I'm unsure about the correctness of some variable
+# it would be nice to register its computation. how to do that.
+# I would need to litter the code with it.
+
+# also, can describe certain things that allow to inspect the log.
+# it could a dynamic log file. have certain namespaces.
+
+# TODO: passing a dictionary around is  a good way of registering informaiton 
+# that you care about. this is not done very explicitly. using just a dictionary 
+# is not a good way. perhaps reflection about the calling function would be 
+# a good thing, and some ordering on what elements were called and why.
+
+# TODO: have a function to append to a dictionary of lists.
+
+# this registering is important though. how can you do this automatically
+# that would be some form of what
+
+# using nested dictionarie s 
+
+# with the parameters that determine computation to be very small such that it
+# can be ran very fast.
+
+# runs directly from config files and result files? 
+# what would one of these look like for DeepArchitect? 
+# very small evaluation time, simple search space.
+
+# TODO: add gradient checking functionality.
+
+# TODO: add some easy way of adding tests to the experiment folders. like 
+# something as to be true for all experiments.
+# also something like, experiments satisfying some property, should 
+# also satisfy some other property.
+
+# NOTE: bridges is slurm managed. I assume it is only slighly different.
+
+
+# do soemthing to easily register conditions to test that the experiments 
+# should satisfy.
+
+# add a non place holder for table generation.
+# there must exist at most one element for the creation of this table.
+# the other stuff should be common. 
+
+# add a function to say which one should be the empty cell placeholder in the 
+# table.
