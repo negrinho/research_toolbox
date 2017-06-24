@@ -12,8 +12,8 @@ def set_obj_vars(obj, d,
         assert not hasattr(obj, k) 
         setattr(obj, k, v)
      
-def retrieve_obj_vars(obj, var_names, fmt_tuple=False):
-    return retrieve_values(vars(obj), var_names, fmt_tuple)
+def retrieve_obj_vars(obj, var_names, tuple_fmt=False):
+    return retrieve_values(vars(obj), var_names, tuple_fmt)
 
 ### partial application and other functional primitives
 import functools
@@ -171,12 +171,12 @@ def key_to_values(ds):
             out_d[k].add(v)
     return out_d
 
-def retrieve_values(d, ks, fmt_tuple=False):
+def retrieve_values(d, ks, tuple_fmt=False):
     out_d = {}
     for k in ks:
         out_d[k] = d[k]
     
-    if fmt_tuple:
+    if tuple_fmt:
         out_d = tuple([out_d[k] for k in ks])
     return out_d
 
@@ -492,6 +492,55 @@ def decompress_path(path, out_filename):
 # import shutil
 # shutil.make_archive(output_filename, 'zip', dir_name)
 
+### simple tools for randomization
+import random
+
+def shuffle(xs):
+    idxs = range( len(xs) )
+    random.shuffle(idxs)
+
+    return [xs[i] for i in idxs]
+        
+def random_permutation(n):
+    idxs = range( n )
+    random.shuffle(idxs)
+
+    return idxs
+
+def argsort(xs, fns, increasing=True):
+    """The functions in fns are used to compute a key which are then used to 
+    construct a tuple which is then used to sort. The earlier keys are more 
+    important than the later ones.
+    """
+
+    def key_fn(x):
+        return tuple( [f(x) for f in fns] )
+    
+    idxs, _ = tb.zip_toggle( 
+        sorted( enumerate( xs ), 
+            key=lambda x: key_fn( x[1] ), 
+            reverse=not increasing ) )
+
+    return idxs
+
+def sort(xs, fns, increasing=True):
+    idxs = argsort(xs, fns, increasing)
+    return apply_permutation(xs, idxs)
+
+def apply_permutation(xs, idxs):
+    assert len( set(idxs).intersection( range( len(xs) ) ) ) == len(xs)
+
+    return [xs[i] for i in idxs]
+
+def apply_inverse_permutation(xs, idxs):
+    assert len( set(idxs).intersection( range( len(xs) ) ) ) == len(xs)
+    
+    out_xs = [None] * len(xs)
+    for i_from, i_to in enumerate(idxs):
+        out_xs[i_to] = xs[i_from]
+    
+    return out_xs
+
 ### date and time
 import datetime
 
@@ -542,8 +591,12 @@ def now_dict():
 ### useful iterators
 import itertools
 
-def iter_product(lst_lst_vals):
-    return list(itertools.product(*lst_lst_vals))
+def iter_product(lst_lst_vals, tuple_fmt=True):
+    vs = list(itertools.product(*lst_lst_vals))
+    if not tuple_fmt:
+        vs = map(list, vs)
+
+    return vs
 
 def iter_ortho_all(lst_lst_vals, ref_idxs, ignore_repeats=True):
     assert len(lst_lst_vals) == len(ref_idxs)
@@ -656,6 +709,29 @@ def print_oneliner_memorytime(memer, timer, pref_str='',
                     mem_units.upper(), 
                     memer.memory_total(units=mem_units),
                     mem_units.upper()) )
+
+class Logger:
+    def __init__(self, fpath, 
+        append_to_file=False, capture_all_output=False):
+        
+        if append_to_file:
+            self.f = open(fpath, 'a')
+        else:
+            self.f = open(fpath, 'w')
+
+        if capture_all_output:
+            capture_output(self.f)
+    
+    def log(self, s, desc=None, preappend_datetime=False):
+        
+        if preappend_datetime:
+            self.f.write( now() + '\n' )
+        
+        if desc is not None:
+            self.f.write( desc + '\n' )
+
+        self.f.write( s + '\n' )
+
 
 # for keeping track of configurations and results for programs
 class ArgsDict:
@@ -777,26 +853,28 @@ def gpus_total():
 def gpus_free():
     return len(gpus_free_ids())
 
-# NOTE: this is not just a matter about gpu utilization, it is also about 
-# memory utilization.
-# TODO: check if this handles memory appropriately.
-# TODO: chec 
-# TODO: there is also a matter about gpu memory or something like that.
-# I can read those numbers, but do something about the other things.
 def gpus_free_ids():
     try:
-        out = subprocess.check_output(['nvidia-smi', '--query-gpu=utilization.gpu', 
+        out = subprocess.check_output([
+            'nvidia-smi', 
+            '--query-gpu=utilization.gpu,memory.used', 
             '--format=csv,noheader'])
-        perc_util = [float(x.split()[0]) for x in out.strip().split('\n')]
 
         ids = []
-        for i, x in enumerate(perc_util):
+
+        gpu_ss = out.strip().split('\n')
+        for i, s in enumerate( gpu_ss ):
+            
+            p_s, m_s = s.split(', ')
+            p = float( p_s.split()[0] )
+            m = float( m_s.split()[0] )
+
             # NOTE: this is arbitrary for now. maybe a different threshold for 
             # utilization makes sense. maybe it is fine as long as it is not 
-            # fully utilized.
-            if x < 0.1:
+            # fully utilized. memory is in MBs.
+            if p < 0.1 and m < 100.0:
                 ids.append(i)
-    
+
         return ids
 
     except OSError:
@@ -997,7 +1075,6 @@ def get_lithium_resource_availability(servername, username, password=None,
         
         print stdout_lines, stderr_lines
 
-        # print stdout_lines, stderr_lines1113
         # if it did not fail.
         if len(stdout_lines) == 1:
             # extract the actual values from the command line.
@@ -1050,12 +1127,13 @@ def run_on_lithium_node(bash_command, node, servername, username, password=None,
 
     return run_on_server(cmd, **retrieve_values(locals(), 
         ['servername', 'username', 'password', 'folderpath', 'wait_for_output']))
-    
+
+# TODO: perhaps add something to run on all lithium node.
+
 # NOTE: this may require adding some information to the server.
 # NOTE: if any of the command waits for output, it will mean that 
 # it is going to wait until completion of that command until doing the other 
 # one.
-# NOTE: add options about 
 # NOTE: as lithium does not have a scheduler, resource management has to be done
 # manually. This one has to prompt twice.
 # NOTE: the time budget right now does not do anything.
@@ -1180,64 +1258,21 @@ class LithiumRunner:
         self.jobs = remaining_jobs
         return outs
 
-
 # try something like a dry run to see that this is working.
-
-
-
-            # set. to do an intersection of this model.
 
 # what happens if some node is unnavailable.
 # TODO: I need to parse these results.
             
-
-### what to do in this part of the model.
-# def run_on_lithium_node(bash_command, node, servername, username, password=None, 
-#         visible_gpu_ids=None, folderpath=None, wait_for_output=True):
-
-#     # check that node exists.
-#     assert node in flatten( get_lithium_nodes() )
-
-#     # prompting for password if asked about. (because lithium needs password)
-#     if password == None:
-#         password = getpass.getpass()
-
-#     # if no visilbe gpu are specified, it creates a list with nothing there.
-#     if visible_gpu_ids is None:
-#         visible_gpu_ids = []
-    
-#     # creating the command to run remotely.
-#     gpu_cmd = 'export CUDA_VISIBLE_DEVICES=%s' % ",".join(map(str, visible_gpu_ids))
-#     cmd = "ssh -T %s \'%s && %s\'" % (node, gpu_cmd, bash_command)
-
-#     return run_on_server(cmd, **retrieve_values(locals(), 
-#         ['servername', 'username', 'password', 'folderpath', 'wait_for_output']))
-
-# question about which one to do now.
-# 
-
-
 # there is also a question about what should be done in the case where there 
 # are not many resources.
 
-    # something to register a command to run.
+# something to register a command to run.
 
-    ### pass
-
-    # as soon as a command is sent to the server, it is removed from the 
-    # list.
+# as soon as a command is sent to the server, it is removed from the 
+# list.
     
-
 ## TODO: do a lithium launcher that manages the resources. this makes 
 # it easier.
-
-
-# essentially, try a bunch 
-
-
-# there is not really an allocator, so I think that it is hard to 
-# get this to work.
-# I think that most sophisticated stuff shoul
 
 # there is stuff that I need to append. for example, a lot of these are simple 
 # to run. there is the syncing question of folders, which should be simple. 
@@ -1247,67 +1282,15 @@ class LithiumRunner:
     # will be available. if you ask too many requirement, you may not have 
     # any available machines.
 
-# I just don't want to do the logic to access it. also, perhaps create some file
-# that I can reuse.
-
-    
-    
-    ### do this later.
-
-
-
-# # run_on_server(servername, bash_command, username=None, password=None,
-# #         folderpath=None, wait_for_output=True, prompt_for_password=False)
-
-
-
-
-# single function that is going to terminate if it does not have sufficient 
-# resources.
-
-    # this is useful to run mulitple processes at once.
-    # NOTE: this is part of the code that is useful to work with different 
-    # parts of the model.
-    # for i in xrange(num_workers):
-    #     cmd = '%s %d %d' % (run_relfilepath, i, num_workers)
-    #     tb.run_on_matrix(cmd, servername, username, password, 
-    #         mem_budget=mem_gbs, time_budget=time_m,
-    #         folderpath=proj_folderpath)
-    #     print cmd
-
-
-
 # be careful about running things in the background.
 # the point is that perhaps I can run this command in 
 # the background, which may actually work. that would be something interesting 
 # to see if th 
 
-    pass
-
-    # run on the model.
 
 # NOTE: there may exist problems due to race conditions, but this can be 
 # solved later.
 
-# the command should be similar. 
-
-
-# # # probably needs to exit if there are no available cpus.
-
-# # # needs to figure out a gpu.
-# # # it is more annoying.
-
-    # for requiring some gpu type, this is going to be a lot simpler.
-
-    # TODO: this is mostly a matter of setting the right part of the model.
-    # think about how to return the model.
-
-    # basically, can move to one of these folders, put the script there, 
-    # run it, and delete it.
-
-# TODO: NOTE that the script should always be removed, even if it does not 
-# succeed. NOTE that only the last one is affect. I can bracket to make 
-# sure that things work properly. this is nice.
 def run_on_matrix(bash_command, servername, username, password=None, 
         num_cpus=1, num_gpus=0, 
         mem_budget=8.0, time_budget=60.0, mem_units='gb', time_units='m', 
@@ -1353,8 +1336,7 @@ def run_on_matrix(bash_command, servername, username, password=None,
         locals(), ['servername', 'username', 'password', 
             'folderpath', 'wait_for_output']) )
 
-
-# TODO: if something does not work, 
+# TODO: needs to manage the different partitions.
 
 
 # def run_on_bridges(bash_command, servername, username, password, num_cpus=1, num_gpus=0, password=None,
@@ -1370,24 +1352,10 @@ def run_on_matrix(bash_command, servername, username, password=None,
 
 # NOTE: if some of these functionalities are not implemented do something.
 
-# NOTE: leave this one for later.
 # this one is identical to matrix.
-
-# NOTE: if a file is required, this is suboptimal. I think that it should be 
-# possible to run it on a remote machine. it can be a long command.
-
-
-# this is probably going to be done in the right folder.
-
-# check if a file is on the server or not.
 
 # have a sync files from the server.
 
-# probably it makes sense to prompt for password in both cases.
-
-# there are 
-
-# can be recursive, maybe...
 # NOTE: this is going to be done in the head node of the servers for now.
 # NOTE: may return information about the different files.
 # may do something with the verbose setting.
@@ -1461,8 +1429,6 @@ def rsync_options(
 
 # there is the question about what kind of models can work.
 # for example, I think that it is possible to talk abougt 
-
-# question is 
 
 # the other deletion aspects may make sense.
 
@@ -1546,7 +1512,6 @@ def sync_local_folder_from_remote(src_folderpath, dst_folderpath,
     return out
 
 ### TODO: add compress options. this is going to be interesting.
-# check this.
 
 # there are remove tests for files to see if they exist.
 # I wonder how this can be done with run on server. I think that it is good 
@@ -1561,7 +1526,6 @@ def sync_local_folder_from_remote(src_folderpath, dst_folderpath,
 # TODO: make sure that those things exist.
 
 
-### adapt.
 
 
 # there is the override and transfer everything, and remove everything.
@@ -1576,18 +1540,11 @@ def sync_local_folder_from_remote(src_folderpath, dst_folderpath,
 
 
 ### plotting 
-
-# in the case of using the library in the server, this may fail.
-# TODO: check if maplotlib is on the server or not.
-
-# NOTE: this does not work. TODO: check if there is a display associated or not.
-
 import os
 if "DISPLAY" not in os.environ or os.environ["DISPLAY"] == ':0.0':
     import matplotlib
     matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-
 
 # TODO: edit with retrieve_vars
 class LinePlot:
@@ -1657,8 +1614,6 @@ class GridPlot:
 # TODO: updatable figure.
 
 # TODO: add histogram plo, and stuff like that.
-
-
 
 ### data to latex
 
@@ -1733,10 +1688,6 @@ def generate_latex_table(mat, num_places, row_labels=None, column_labels=None,
             f.write(table)
     if show:
         print table
-
-
-
-
 
 ### sequences, schedules, and counters (useful for training)
 import numpy as np
@@ -2047,6 +1998,47 @@ def preprocess_sentence(sent, tk_to_idx,
     return proc_sent
 
 ### simple featurization
+class ProductFeaturizer:
+    def __init__(self, fs):
+        self.featurizers = fs
+    
+    def features(self, x):
+        pass
+    
+    def dim(self):
+        return sum( [f.dim() for f in self.featurizers] )
+
+class HashFeaturizer:
+    def __init__(self):
+        pass
+
+class OneHotFeaturizer:
+    def __init__(self):
+        pass
+
+class BinarizationFeaturizer:
+    def __init__(self):
+        pass
+
+# NOTE: certain things should be more compositional.
+
+# TODO: perhaps add the is sparse information.
+
+# what should be the objects.
+
+# there is information about the unknown tokens and stuff like that.
+
+
+# there are things that can be done through indexing.
+
+# can featurize a set of objects, perhaps. 
+# do it directly to each of the xs passed as 
+
+# some auxiliary functions to create some of these.
+
+
+
+# the construction of the dictionary can be done incrementally.
 
 # TODO: a class that takes care of managing the domain space of the different 
 # architectures.
@@ -2368,6 +2360,50 @@ def load_experiment_folder(exp_folderpath, json_filenames,
 
     return (ps, rs)
 
+### useful for generating configurations to run experiments.
+import itertools 
+
+def generate_config_args(d, tuple_fmt=True):
+    ks = d.keys()
+    vs_list = iter_product( [d[k] for k in ks] )
+    argvals_list = []
+    for vs in vs_list:
+        proc_v = []
+        for k, v in itertools.izip(ks, vs):
+            if isinstance(k, tuple):
+
+                # if it is iterable, unpack v 
+                if isinstance(v, list) or isinstance(v, tuple):
+                    assert len(k) == len(v)
+
+                    proc_v.extend( v )
+
+                # if it is not iterable, repeat a number of times equal 
+                # to the size of the key.
+                else:
+                    proc_v.extend( [v] * len(k) )
+
+            else:
+                proc_v.append( v )
+        
+        if tuple_fmt: 
+            argvals_list.append( tuple( proc_v ) )
+        else:
+            argvals_list.append( proc_v )
+
+    # unpacking if there are multiple tied argnames
+    argnames = []
+    for k in ks:
+        if isinstance(k, tuple):
+            argnames.extend( k )
+        else: 
+            argnames.append( k )
+    
+    # guarantee no repeats.
+    assert len( set(argnames) ) == len( argnames ) 
+
+    return (argnames, argvals_list)
+
 # TODO: syncing folders
 
 ### project manipulation
@@ -2377,8 +2413,9 @@ def create_project_folder(folderpath, project_name):
     create_folder( fn( [] ) )
     # typical directories
     create_folder( fn( [project_name] ) )
+    create_folder( fn( ["analyses"] ) )     
     create_folder( fn( ["data"] ) )
-    create_folder( fn( ["experiments"] ) )    
+    create_folder( fn( ["experiments"] ) )
     create_folder( fn( ["notes"] ) )
     create_folder( fn( ["temp"] ) )
 
@@ -2407,9 +2444,14 @@ def create_project_folder(folderpath, project_name):
     # placeholders
     write_textfile( fn( ["experiments", "readme.txt"] ), 
         ["All experiments will be placed under this folder."] )
+
     write_textfile( fn( ["temp", "readme.txt"] ), 
         ["Here lie temporary files that are relevant or useful for the project "
         "but that are not kept under version control."] )
+
+    write_textfile( fn( ["analyses", "readme.txt"] ), 
+        ["Here lie files containing information extracted from the "
+        "results of the experiments. Tables and plots are typical examples."] )
 
     # typical git ignore file.
     write_textfile( fn( [".gitignore"] ), 
@@ -2419,9 +2461,33 @@ def create_project_folder(folderpath, project_name):
         "git commit -a -m \"Initial commit for %s.\" && cd -" % ( 
             fn( [] ), project_name), shell=True)
     
-
-
 # TODO: add options to directly initialize a git repo.
+
+
+### simple tests and debugging that are often useful.
+def test_overfit(ds, overfit_val, overfit_key):
+    ov_ds = []
+    err_ds = []
+
+    for d in ds:
+        if d[overfit_key] == overfit_val:
+            ov_ds.append( d )
+        else:
+            err_ds.append( d )
+    
+    return (ov_ds, err_ds)
+
+def test_with_fn(ds, fn):
+    ov_ds = []
+    err_ds = []
+
+    for d in ds:
+        if fn( d ):
+            good_ds.append( d )
+        else:
+            bad_ds.append( d )
+    
+    return (good_ds, bad_ds)
 
 
 # NOTE: this can be done differently and have options that determine if something 
@@ -2451,10 +2517,7 @@ def wrap_strings(s):
 # to send things to a file, as it is easy to send them to the terminal.
 # 
 
-
 # callibration for running things in the cpu.
-
-
 
 # if there are multiple things to be loaded, it is best to just do one.
 # or something like that.
@@ -2462,8 +2525,8 @@ def wrap_strings(s):
 # it would be nice if merging the keys would preserve some form of 
 # ordering in the models.
 
-
-    # list_folders(exp_folderpath)
+# TODO: perhaps additional information that allows to run things on matrix 
+# directly by syncing folders and launching threads.
 
 # compress path? this is something that I can do conveniently.
 
@@ -2480,10 +2543,6 @@ def wrap_strings(s):
 # sort of a report of progress made, how many need to be done more and stuff like 
 # that.
 
-# TODO: manipulation of the experiments to have precisely want I need.
-
-# do the make csv file function.
-
 ### load all configs and stuff like that.
 # they should be ordered.
 # or also, return the names of the folders.
@@ -2493,27 +2552,13 @@ def wrap_strings(s):
 
 # connecting two computational graphs in tensorflow.
 
-
 # TODO: some functionality will have to change to reaccomodate
 # the fact that it may change slightly.
 
 ### profiling
 
-# TODO: figure out the right code to have here.
-
-# csv from list of dicts
-# filter 
 
 # the maximum I can do is two dimensional slices.
-
-# copying the code.
-
-# stuff that I can use by running the toolbox.
-# same thing on the compressing end. compress the file before downloading.
-
-# generate csv from a list of dictionaries.
-
-# this should be made easier.
 
 # get all configs.
 # # TODO: add information for running this in parallel or with some other tweaks.
@@ -2528,47 +2573,15 @@ def wrap_strings(s):
     
     ### call each one of them, it can also be done recursively.
 
-
 # how to identify, them
 # plot the top something models and see 
 # problematic to represent when they have 30 numbers associated to them.
 # pick up to 7 representative numbers and use those.
-# more than that, it start becomes a nuissance.
 
 # top 10 plots for some of the most important ones.
-# 
 
-# need dynamic runs of the model, to make 
-
-# perhaps can switch things around.
-
-
-
-# some tools for 
-# data.py da 
-# train.py tr
-# model.py mo
-# preprocess.py pr 
-# evaluate.py ev
-# plot.py pl
-# main.py ma
-# experiments.py ex
-# analyze an (maybe for extra things)
-### ---
-# notes
-# data
-# temp
-# experiments
-# analyses
-# code
-
-# get path
-
-# maybe even write something to the model. this could be interesting.
-
-# add stuff for feature extraction.
-
-
+# TODO: <IMPORTANT> standardization of the files generated by the experiment,
+# and some functionality to process them.
 
 ### TODO: upload to server should compress the files first and decompress them 
 # there.
@@ -2577,35 +2590,16 @@ def wrap_strings(s):
 
 # for boilerplate editing
 
-
-
 # add these. more explicitly.
 # TODO: add file_name()
 # TODO: file_folder
 # TODO: folder_folder()
 # TODO: folder_name()
 
-# for running scripts there are questions about waiting for termination
-# and what not.
-
 # add more information for the experiments folder.
 # need a simple way of loading a bunch of dictionaries.
 
 # there is the question of it is rerun or dry run.
-# something like that.
-# ideally, the person should decide if it want to capture or not.
-
-# how many in parallel.
-# the folder is going to be there and it will have some structure.
-
-# let us run all the experiments just for fun.
-
-# there is also the script for the experiment.
-
-# how to profile.
-
-
-# also needs a high level experiment to run all of them.
 
 # basically, each on is a different job.
 # I can base on the experiment folder to 
@@ -2613,43 +2607,12 @@ def wrap_strings(s):
 # data and the other one.
 # works as long as paths are relative.
 
-# can be done either through the sh files or through the config files 
-# using information
-
-# the names of these folders are going to be fixed.cnf cfg conf cfg 
-
-# relative are better.
-
-    # needs more information.
-
-# maybe run experiments and stuff like that.
-
-# each gets its runnable script or something like that.
-
-# relative the projects.
-
-# multiple experiments can be ran.
-# 
-# can create a config out of the elements used in the call. 
-# 
-
-# analyze the configs for the model.
-
-# some number in parallel
-
-
-# that can be part of the functionality of the research toolbox.
-
-# as these 
-
 # this model kind of suggests to included more information about the script 
 # that we want to run and use it later.
 
 ## NOTE: can add things in such a way that it is possible to run it
 # on the same folder. in the sense that it is going to change folders
 # to the right place.
-
-### and more.
 
 # I think that I can get some of these variations by combining various iterators.
 
@@ -2672,30 +2635,8 @@ def wrap_strings(s):
 # assume that the references are with respect to this call, so I can map them 
 # accordingly
 
-# ignore the data for now.
-# 
-
 # stuff to kill all jobs. that can be done later.
-
-# assumes that the experiment is ran in the experiment folder.
-    
-
-    # code folder path 
-    # needs to substitute the function. it is annoying because it 
-
-# remap some of the paths or something like that.
-# absolute paths. 
-# kind of tricky. what would that correspond to?
-
-# it is tricky to make sure that this works.
-### if it copies data and code, it needs to map stuff to
-
-
-# is None... this is cool for getting the experiments to work.
-
-### it means that I can run the code while being indexed to the part of the 
-# model that actually matters.
-
+# <IMPORTANT> this is important for matrix.
 
 # NOTE: this may have a lot more options about 
 def run_experiment_folder(folderpath):
@@ -2703,11 +2644,6 @@ def run_experiment_folder(folderpath):
 
 # there needs to exist some information about running the experiments. can 
 # be done through the research toolbox.
-
-
-
-### --data_folder /..../renato/Desktop/research/projects/beam_learn/data
-# or it just uses some remapping
 
 # assumes the code/ data 
 # assumes that the relative paths are correct for running the experiment 
@@ -2718,14 +2654,7 @@ def run_experiment_folder(folderpath):
 # it is going to be called from the right place, therefore there is no problem.
 
 
-# in those ortho-iterators, it is perhaps a good idea to take those that 
-# cmome next
-
-# what to do with the output.
-
 # even just upload the experiment folder is enough.
-
-
 
 # TODO: stuff for concatenation. 
 
@@ -2741,9 +2670,6 @@ def run_experiment_folder(folderpath):
 # def pytorch_load_model(fpath):
 #     pass
 
-# something like this 
-# run on remote gpu and cpu.
-# TODO: run thsi locally or remotely. the gpu one takes more care.
 
 
 # have to hide the model for this.
@@ -2756,7 +2682,6 @@ def run_experiment_folder(folderpath):
 
 # massive profiles.
 
-
 # TODO:
 def wait(x, units='s'):
     pass
@@ -2764,8 +2689,6 @@ def wait(x, units='s'):
 
 # TODO: do a function to collapse a dictionary. only works for 
 # key value pairs.
-
-# TODO: copy a version of the running code into the folder.
 
 # add the ignore hidden files to the iterator.
 
@@ -2787,8 +2710,6 @@ def wait(x, units='s'):
 
 # some default parameters for certain things.
 # this is also useful to keep around.
-
-# some parts can be relaxed.
 
 # check if I can get the current process pid.
 
@@ -2842,9 +2763,6 @@ def wait(x, units='s'):
 
 #     return (best_params, best_score)
 
-# have a way of sending all output to file.
-# sending everything to files is a nice way of going about this.
-
 # managing some experimental folders and what not.
 
 # will need to mask out certain gpus.
@@ -2853,16 +2771,6 @@ def wait(x, units='s'):
 
 # these are mostly for the servers for which I have access.
 
-# need some function that goes over multiple machines.
-# function that issues rtp.
-
-# only run on certain gpus
-
-# only check a subset of them.
-
-# the running script for this is going to be much more high level.
-
-
 # may need only the ones that are free.
 
 # perhaps have something where it can be conditional on some information 
@@ -2870,23 +2778,14 @@ def wait(x, units='s'):
 # If it is directly. it should be recursive, and have some 
 # form of condition. I need to check into this.
 
-# totally allows you to do what you want
-
 # information on what gpu it was ran on. 
 # check if some interfacing with sacred can be done.
 
 # call these these functions somewhere else. 
 # this should be possible.
 
-# for interacting with slum.
-# all the s(something commands.)
-# for getting information about the server.
-
-
 # do some well defined units;
 # have some well defined server names.
-
-# psc, lithium, russ', matrix
 
 # creates the wrappers automatically.
 
@@ -2898,13 +2797,8 @@ def wait(x, units='s'):
 # I think that it should get a single figure for it.
 # depending on what you pass, you should be able to get what you want.
 
-# also, some high level adjustment functions
-
-# capture all output and make it go to the 
 
 # I don't think that I will need it.
-
-# some can be done through POpen or something like that.
 
 # simple interfaces for models.
 
@@ -2924,9 +2818,6 @@ def wait(x, units='s'):
 # name experiments; if not, just have a single folder where everything is there. 
 # sort by some date or id.
 
-# stuff to get the git id.
-
-
 # in some cases, operate directly on files.
 # take a list of files, and return a csv.
 
@@ -2938,10 +2829,6 @@ def wait(x, units='s'):
 
 # TODO: stuff for using Tensorflow and PyTorch and Tensorboard.
 
-# choose whether to print to the terminal or to a file.
-# this can be done in the memer. 
-# I think that a single line is enough to get this working.
-
 # better dictionary indexing and stuff like that.
 
 # that can be done in a more interesting way.
@@ -2950,30 +2837,18 @@ def wait(x, units='s'):
 # ideally, I think that it should be possible to sample configurations 
 # uniformly.
 
-# this should be something easy to do. 
-# it can be done with choose.
 
-# logging can be done both to a file and to the terminal.
+# for tied configurations.
+# basically, in cases where we want special conbinations.
 
-### TODO: maybe not all have to be collapsed to the lower level.
-# NOTE: not throughly tested.
+# gives back, argnames, argvals.
 
 
-# iter_product([1,2,3], [2,3,4])
-# iter_product({'a' : [1,2,3], 'b' : [2,3,4]}) => directly to something.
+# NOTE: there is probably something analogous that can be done for iterators.
 
-# change some number of pairs.
-
-# what if they are named.
-
-# may be positional or not.
-# does all the other ones, 
-
-# stuff for controlling randomness.
 
 # dictionary aggregate, test what are the value that each element has 
 # it only makes sense to have such a dictionary for extra error checking.
-
 
 # also, iteration over the folders that satisfy some characteristics, 
 # like having certain values for certain parameters.
@@ -2996,8 +2871,6 @@ def wait(x, units='s'):
 
 # something between interface between DeepArchictect and a Figure.
 
-# use more consistent spelling
-
 # add common ways of building a command line arguments.
 
 # add common arguments and stuff like that.
@@ -3005,20 +2878,11 @@ def wait(x, units='s'):
 
 # for dealing with subsets, it is important to work with the model.
 
-# come up with a special format for main.
-
-# do stuff to deal with json. it may be easier to do actually.
-
 # do some structures for keeping track of things. easily.
 # perhaps just passing a dictionary, and appending stuff.
 # dealing with summary taking it is difficult.
 
 # files to write things in the CONLL-format 
-
-# stuff for step tuning, and stuff like that. when to decrease, 
-# what to assume
-
-# there should exist stuff that ignores if models are iterable or not.
 
 # I'm making wide use of Nones. I think that that is fine.
 # keep this standard, in the sense that if an option is not used,
@@ -3028,12 +2892,7 @@ def wait(x, units='s'):
 
 # iterate over all files matching a pattern. that can be done easily with re.
 
-# an easier way of doing named tuples with the same name of the variable.
-# 
-
 # simple scripts for working with video and images.
-
-# map values. that is something that can be done over the dictionary.
 
 # the whole load and preprocessing part can be done efficiently, I think 
 # I think that assuming one example per iterable is the right way of going 
@@ -3044,15 +2903,19 @@ def wait(x, units='s'):
 # NOTE: there are also other iterators that are interesting, but for now,
 # I'm not using them. like change of all pairs and stuff like that.
 
+# NOTE: numpy array vs lists. how to deal with these things.
+
+# do some random experiment, that allows then to do a correction,
+# for example, given 
+
+# maybe passes on a sequence of tests that are defined over the 
+# experiments. 
+# this means that probably there is some loading of experiments 
+# that is then used.
 
 # set_seed
 # and stuff like that. 
 # it is more of an easy way of doing things that requires me to think less.
-
-
-# from lower level things to more higher level things. 
-# like construct from data and preprocess.
-# lump together common operations.
 
 # copy directory is important
 # as it is copy file.
@@ -3060,12 +2923,6 @@ def wait(x, units='s'):
 # copy directory. all these can be done under the ignore if it exists 
 # or something like that. I have to think about what is the right way of 
 # going about it.
-
-# accumulation, keeping track of statistics.
-# like, do it once, and then push to the model.
-# it is cleaner.
-
-# random permutation and stuffle.
 
 # create these summaries, which make things more interesting.
 
@@ -3104,9 +2961,6 @@ def wait(x, units='s'):
 # the variables from the local context, that way, I only have to write the names, 
 # i.e., it becomes less tedious.
 
-# retrieve("num_words_keep", )
-# this is done from the local context.
-
 # functions to send emails upon termination. that is something interesting,
 # and perhaps with some results of the analysis.
 
@@ -3115,14 +2969,14 @@ def wait(x, units='s'):
 
 # plotting is also probably an interesting idea.
 
+# TODO: logging can be done through printing, but there is also
+# the question about append the stdin and stderr to 
+# the file or terminal.
 
-# also, potentially add some common models, and stuff like that.
-
+# also, potentially add some common models
 
 # have an easy way of generating all configurations, but also, orthogonal 
 # configurations.
-
-# and also, pairs of configurations.
 
 # generate most things programmatically.
 
@@ -3152,12 +3006,6 @@ def wait(x, units='s'):
 # probably those iterators would like to have a dictionary or a tuple
 # that would be nice.
 
-# easier to apply. less code.
-
-# most of it is training configuration.
-
-# around 5000 lines of toolbox code is OK.
-
 # essentially, question about using these paths, vs using something that is more 
 # along the lines of variable arguments.
 
@@ -3165,22 +3013,14 @@ def wait(x, units='s'):
 
 # more like aggregated summary and stuff like that.
 
-# it is tedious to add one more argument and stuff like that.
-# keep only the model.
-
 # especially the functions that take a large number of arguments are easier 
 # to get them working.
 
-# featurizers and feature representations and stuff like that.
-# something that you can apply once, 
-
-# check if PyTorch keeps sparse matrices too? probably not.
+# check if PyTorch keeps sparse matrices too? probably not
+# Why do I care?
 
 # stuff that is task based, like what wrappers and loaders, and preprocessors
 # and stuff like that.
-
-# news model.
-# think about the model.
 
 # stuff for image recognition, image captioning, visual question answering
 
@@ -3192,27 +3032,17 @@ def wait(x, units='s'):
 
 # and it may return a dictionary or a tuple. that seems reasonable enough.
 
-# maybe the separators can be different. 
-# maybe no spaces allowed and other separators not allowed too.
-
 # manipulation of text files is actually quite important to make this practical.
 # tabs are not very nice to read.
-
-# allow simple 
 
 # NOTE: going back and forth using these dictionaries is clearly something that 
 # would be interesting to do easily.
 
-# testing the 
-
 # some capture of outputs to files.
-
-# remember than things are always locally.
 
 # something to sample some number uniformly at random from the cross 
 # product.
-# it is simple to construct the list from the iterator.
-# 
+# it is simple to construct the list from the iterator
 
 # better do at random and then inspect factors of variation.
 # the most important thing is probably time and space.
@@ -3245,10 +3075,6 @@ def wait(x, units='s'):
 # another important aspect is the toolbox aspect, where you 
 # things are more consistent that elsewhere
 
-# TODO: fix the gpu code in case there are no gpus.
-# this code needs to have a lot more exception handling in some cases where 
-# it makes sense.
-
 # creating command-line argument commands easily
 
 # TODO: more stuff to manage the dictionaries.
@@ -3261,21 +3087,16 @@ def wait(x, units='s'):
 
 # may specify the type or not.
 
+# generating multiple related configs easily.
+# perhaps by merging or something like that.
+# and then taking the product.
 
-    # NOTE: may there is a get parser or something like that.
-
-# maybe add an option that is simp
+# NOTE: may there is a get parser or something like that.
 
 # easy to add arguments and stuff like that. what 
 # cannot be done, do it by returning the parser.
 
 # may be more convenient inside the shell.
-
-# this works. gets trickier 
-
-# run on machine is mostly useful for remote machines, therefore 
-# you should should think about running things in the command line.
-# not Python commands.
 
 # # get the output in the form of a file. that is good.
 
@@ -3290,8 +3111,6 @@ def wait(x, units='s'):
 # run on cpu and stuff like that.
 # depending on the model.
 
-# even for the 
-
 # can also, run locally, but not be affected by the result.
 
 # it works, it just works.
@@ -3302,10 +3121,13 @@ def wait(x, units='s'):
 
 # stuff to handle dates.
 
-
 # if it is just a matter of tiling the graph, it can be done.
 
 # can either do it separately r 
+
+# TODO: add stuff for easy hyperparameter tuning.
+# it is easy to make the code break.
+# also, check some of the simple stack traces up front.
 
 
 # GridPlots and reference plots.
@@ -3320,9 +3142,6 @@ def wait(x, units='s'):
 
 # folder creation
 
-# tests if already exists.
-#  some useful manipulation for dictionaries.
-
 # TODO: generating a plot for a graph.
 # TODO: generating code for a tree in tikz.
 
@@ -3331,13 +3150,6 @@ def wait(x, units='s'):
 # NOTE: no scientific notation until now.
 # possibilities to add, scientific notation.
 # to determine this, and what not.
-
-# say which entries to bold, or say to bold the largest element, smallest 
-# in line or not.
-# something with an header and a tail.
-
-# may change if I add an omission mask, but that is more complex. 
-# not needed for now.
 
 # probably in the printing information, I should allows to choose the units
 # TODO: the table generation part was not working OK yet.
@@ -3357,42 +3169,18 @@ def wait(x, units='s'):
 # information about the single run can be generated somehow.
 # maybe not in the results, but in some form of log.
 
-# doing everything in json makes it more portable.
-
 # ignoring hidden folders is different than ignoring hidden files.
 # add these two different options.
 
 # perhaps ignoring hidden files vs ignoring hidden folders make more sense.
 
-# partial application for functions is also a possibility.
-
-# potentially see paramiko for more complex operations.
-
-# are there better ways of doing this?
-# perhaps.
-
-### I think that it has enough body to go to some a common space.
-
 # can I do anything with remote paths to run things. I think that it may 
 # be simpler to run models directly using other information.
-
-# also, from dictionary.
 
 # if no destination path, in the download, it assumes the current folder.
 # TODO: always give the right download resulting directory.
 
 # probably more error checking with respect to the path.
-
-# some of these questions are applicable to creation and deletion of repos.
-
-# also, directly using ways of keeping the results. some auxiliary function 
-# for manipulating and for storing those values in the object directly.
-# this is interesting, because it is simple to do.
-
-# maybe this is an ssh path rather than a general remote path. 
-# maybe can add an output format.
-
-# perhaps, I should check that I'm in fact looking at a directory.
 
 # TODO: perhaps will need to add ways of formating the json.
 
@@ -3400,7 +3188,8 @@ def wait(x, units='s'):
 
 # add support for grids of images.
 
-# research_toolbox
+# DO a conversion from a dict to an ordered dict
+# TODO: something that makes it easy to generate different graphs.
 
 # stuff for profiling and debugging.
 
@@ -3415,8 +3204,6 @@ def wait(x, units='s'):
 # even for simpler stuff where from the definition it is clear what is the 
 # meaning of it, I think that it should be done.
 
-# for files f
-
 # don't assume more than numpy.
 # or always do it through lists to the extent possible.
 
@@ -3425,13 +3212,6 @@ def wait(x, units='s'):
 # use something really simple, in cases where it is very clear.
 
 ### this one can be used for the variables.
-
-# perhaps set local vars.
-
-
-### extremely useful for delegation. for delegation and for passing around 
-# information. positional arguments are hard to keep track of.
-# easier to 
 
 # json is the way to go to generate these files.
 
@@ -3449,13 +3229,10 @@ def wait(x, units='s'):
 
 # for download, it also makes sense to distinguish between file and folder.
 
-# aggregate dictionaries. that should be nice.
-
 # for configfiles, it would be convenient.
 
 # there is code that is not nice in terms of consistency of abstractions.
 # needs to be improved.
-
 
 # managing the data folder part of the model. how to manage folders with 
 # data. perhaps register.
@@ -3476,8 +3253,6 @@ def wait(x, units='s'):
 # I think path manipulation makes a lot more sense with good tools.
 # for total time and stuff like that.
 
-# to use srun and stuff.
-
 # this can be useful to having stuff setup.
 
 # stuff to pull all the log files from a server.
@@ -3495,10 +3270,6 @@ def wait(x, units='s'):
 
 # can capture all the argumentss, I guess, which means that 
 # that I can use the information.
-
-# typical run, dump the arguments to a file, 
-# dump the results to a file.
-# probably should have a way of indexing the same results.
 
 # next thing: I need to make this more consistent.
 
@@ -3547,10 +3318,6 @@ def wait(x, units='s'):
 
 # running them from the command line makes more sense.
 
-# getting to a point where you can run one experiment by calling a 
-# bash script with 32 arguments is what you want to do. after that, 
-# it is quite trivial to parallelize
-
 # basically, each task is calling the model some number of times 
 
 # need to have a way of calling some python command on the command line 
@@ -3569,32 +3336,6 @@ def wait(x, units='s'):
 
 # for directly generating experiments from main and stuff like that.
 
-# how to keep track of the changes.
-
-# multiple runs for the same experiment? 
-# copy some experiment configuration? sounds hard...
-# better not.
-
-# merging two experiments.
-
-# some tools for 
-# data.py da 
-# train.py tr
-# model.py mo
-# preprocess.py pr 
-# evaluate.py ev
-# plot.py pl
-# main.py ma
-# experiments.py ex
-# analyze an (maybe for extra things)
-### ---
-# notes
-# data
-# temp
-# experiments
-# analyses
-# code
-
 # get paths to the things that the model needs. I think that it is a better way of
 # accomplishing this.
 
@@ -3606,7 +3347,8 @@ def wait(x, units='s'):
 # stuff like that.
 
 # for getting only files at some level
-# 
+
+# TODO: creation of synthetic data.
 
 # do the groupby in dictionaries
 # and the summaries.
@@ -3620,9 +3362,6 @@ def wait(x, units='s'):
 # I'm making a clean distinction betwenn the files that I want to run and 
 # the files that I want to get.
 
-# also, I should have some simple machine names.
-# for example, for the ones in Alex server.
-
 # stuff to process some csv files.
 # stuff to manipulate dates or to sort according to date. 
 # perhaps create datetime objects from the strings.
@@ -3634,8 +3373,6 @@ def wait(x, units='s'):
 
 # the goal is to run these things manually, without having to go to the 
 # server.
-
-# just keeping the password somewhere are look it up.
 
 # most of the computational effort is somewhere else, so it is perfectly fine 
 # to have most of the computation be done somewhere else.
@@ -3650,31 +3387,6 @@ def wait(x, units='s'):
 # this can be done to run the code very easily.
 # taking the output folder is crucial for success.
 
-# run this with different values of the configuration.
-
-# if they don't have the same, I can add Nones.
-
-# list of dictioaries to CSV.
-
-# experiment which is simply some identification.
-# counting.
-
-# /foldername/exp[n]/files
-# perhaps readme.txt
-# code also, and perhaps data.
-# the experiments should be created with the path of the folder in 
-# mind.
-
-# path to the main folder
-# also, some list of values for the parameters.
-# it takes some number of configurations for the parameters.
-# let us say that it does not repeat the name of the thing multiple 
-# times.
-
-# (.....) # ordered.
-
-# 
-
 # if the code is there, there shouldn't exist really a problem with getting it to 
 # work.
 
@@ -3682,13 +3394,11 @@ def wait(x, units='s'):
 # work. maybe there is some prefix and suffix script that has to be ran for these
 # models. this can be passed somewhere.
 
-
 ### TODO: other manipulation with the experiment folder.
 # that can be done.
 
-
-# it should copy the code without git and stuff. this is going to be 
-# pain to get right.
+# it should copy the code without git and stuff. actually, it may be worth 
+# to keep git.
 
 # there are folders and subfolders. 
 
@@ -3698,21 +3408,13 @@ def wait(x, units='s'):
 # TODO: probably do something to add requirements to the code. 
 # this would be something interesting.
 
-
 # run one of these folders on the server is actually quite interesting.
 # I just have to say run folder, but only every some experiment.
 # that is what I need.
 
-# probably needs more interface information.
-# 
-
 # operating slurm form the command line.
 
 # this is going to be important for matrix and the other ones.
-
-# sorted, with stable keys.
-
-# important to request the right amount of data and stuff like that.
 
 # login
 # change to the right folder
@@ -3731,17 +3433,12 @@ def wait(x, units='s'):
 # also, regardless of the path used to run the things, it should 
 # always do the right thing..
 
-# allocation of gpus and stuff like that 
-# this is going to be tricky.
-
 # available memory per gpu and stuff like that.
 
 # probably I should have some way of asking for resources.
 
 # maybe wrap in a function.
 # gpu machines in lithium.
-
-# copying the code is a good idea for now.
 
 ### will need some configs for slurm. how to set things up.
 
@@ -3760,11 +3457,6 @@ def wait(x, units='s'):
 
 # readme json with other information
 
-# the path should be relative or something like that.
-# the configuration should be easy to do.
-
-# NOTE: I will probably ignore the fact that 
-
 # may just find a new name.
 
 # always ask for a name.
@@ -3774,7 +3466,6 @@ def wait(x, units='s'):
 
 # can be local or it can be global
 # run the folder.
-# 
 
 # have some tools for padding.
 # it may have a way of doing reentry, or it may simply try different models.
@@ -3810,16 +3501,6 @@ def wait(x, units='s'):
 # needs easy way of making the code run directly. never know anything,
 # for example, how does it know that it has been finished or not.
 
-# some number of different jobs.
-
-# split then in different jobs.
-
-# data <- if we choose to copy it.
-# code <- if we choose to copy it.
-# experiments
-# readme.txt
-# jobs <- all the jobs to run the experiments.
-
 # do it all in terms of relative paths.
 # or perhaps map them to non-relative paths.
 
@@ -3828,11 +3509,6 @@ def wait(x, units='s'):
 # assumes that the config carries all the necessary information.
 
 # assumes that the model knows what to do with respect to the given data path.
-
-# NOTE: capturing the output could be done at the level of the process.
-# that would be the best thing that we could do
-
-# the question is how much can we get.
 
 # it is a question of reentry and checkpoints and stuff. it runs 
 # until it does not need to run anymore.
@@ -3845,17 +3521,12 @@ def wait(x, units='s'):
 
 # there is stuff about making parents and things like that.
 
-# the question is the type of run that we need and stuff like that
-# can I run a script that forks some number of jobs.
-# or can I have a script that run some fraction of the model
-
 # temp, out and other things that are more temporary and for which your command
 # does not care too much.
 
 # either all or a fraction.
 
 # working with path fragments and stuff like that.
-
 
 # commit on the structure.
 
@@ -3873,9 +3544,6 @@ def wait(x, units='s'):
 # after having all those things, there is no need of the research toolbox.
 
 # TODO: I need stuff for GPU programs.
-
-# launching the job can still be done by logging in in most cases.
-# I think that it is not too bad.
 
 # relative paths are better.
 # I don't see a reason to use absolute paths.
@@ -3899,7 +3567,8 @@ def wait(x, units='s'):
 # is useful in reading the model.
 
 # what can I do with that model. this is actually quite interesting. 
-# 
+
+# NOTE: type of functions that can be considered to explore 
 
 # for gpu programs and stuff like that
 # maybe I could add options which are common in generating the bash scripts 
@@ -3937,13 +3606,10 @@ def wait(x, units='s'):
 # TODO: add the stuff for graph viz in both pytorch and tensorflow.
 # the problem is that there are things that I need to care about.
 
-
 # graph visualization can be crucial for understanding what is happening 
 # in the model. it should be possible to wrap the model easily.
 
 # using hooks to access intermediate gradients.
-
-# TODO: try the alternative that they suggested.
 
 # TODO: can introduce some easy ways of testing the program? 
 # it is hard to do this in general. perhaps in some narrow domain specific way 
@@ -3965,7 +3631,7 @@ def wait(x, units='s'):
 # example, a config that runs some number of other configs for some other 
 # experiment.
 
-# do things for the exploration of csv files. 
+# do things for the exploration of csv files. NOTE: can be done through pandas.
 # this is going to be very handy to explore the results.
 
 # easy way of fixing some of the arguments.
@@ -3976,6 +3642,10 @@ def wait(x, units='s'):
 # files mimicking some of the evaluation metrics that we looked at.
 # this makes sense only after reaching a certain number of things to 
 # do, or having libraries that are not guaranteed to exist in the model.
+
+# TODO: for debugging, I can add information about the calling stack or 
+# the function that is calling some methods. this may be useful for logging.
+# can be done through inspect.
 
 # questions about the model.
 
@@ -4071,7 +3741,6 @@ def wait(x, units='s'):
 # for removing the ones that are not complete.
 # there is somemore additional processing of results that would be interesting.
 
-
 # add more functionality to streamline profiling. it should be easy to extract
 # relevant information. look at the pstats objects.
 
@@ -4106,8 +3775,6 @@ def wait(x, units='s'):
 # take a script and make it some other type of script. example, 
 # from running locally to running on the server.
 
-# make it easy to generate custom scripts to the 
-
 # do the experiments in both the cluster and here.
 
 # have some utility scripts that can be called from the console.
@@ -4135,8 +3802,6 @@ def wait(x, units='s'):
 
 # generating easily the scripts for running on the machine. do not worry about 
 # having too much stuff now.
-
-# note, the parallel run script may not work there in the server
 
 # TODO: I will need some form of managing experiments across projects.
 
@@ -4369,7 +4034,6 @@ def wait(x, units='s'):
 # it is very easy to generate code in python for C. 
 
 # TODO: interface for a model and a model trainer.
-#
 
 # TODO: have easy functionality for conditional running, e.g., if a file exists
 # or not.
@@ -4478,8 +4142,6 @@ def wait(x, units='s'):
 # add some additional conditions that help to detect if the model is training 
 # or not.
 
-# it would  be interesting to add something  
-
 # add support to some other plotting libraries, like d3 and other relevant 
 # ones. 
 # there is also graphviz that may be interesting for certain aspects of the code.
@@ -4564,10 +4226,6 @@ def wait(x, units='s'):
 
 # TODO: have a simple way of syncing the folder for running experiments 
 # somewhere. it should be really easy to sync the experiments on those folders.
-# 
-
-# make it easy to sync the folders. how?
-# I think that for now, the most important is syncing everything.
 
 # TODO: perhaps sync remote folder through the command line.
 # it is sort of a link between two folders.
@@ -4612,8 +4270,6 @@ def wait(x, units='s'):
  
 # should be easy to run multiple commands remotely.
 
-# handle properly the non-existence of visualization services.
-
 # NOTE: it is  easy to define a function locally and then update it to the
 # server.
 
@@ -4622,7 +4278,6 @@ def wait(x, units='s'):
 
 # NOTE: it mostly makes sense to get stuff from the server to the 
 # local host.
-
 
 # basically there is stuff on the upload link, and there is stuff on the 
 # download link. on the upload link, I just want to sync some of the 
@@ -4661,43 +4316,12 @@ def wait(x, units='s'):
 
 # TODO: add to the toolbox functionality to tune the step size.
 
-
 ### older stuff that has been moved.
 
 # TODO: difference between set and define.
 # set if only exists.
 # define only if it does not exist.
 # both should have concrete ways of doing things.
-
-### 
-
-
-# NOTE: this part here can be improved.
-# NOTE: for now, this is just going to use a single gpu for each time. 
-
-# doing double ssh to 
-
-# TODO: check that you get the right prompt rather than something else.
-# NOTE: certain things may be troublesome because of escaping the commands 
-# correctly and stuff like that. I don't think that that would be 
-# handled by itself.
-# having that into account in the command passed may be a little troublesome.
-
-# I need to handle this some how.
-# there are cases where I can just run ssh directly.
-
-
-
-# it is better to pass a user name.
-
-# NOTE: prompting for password does not make much sense.
-# gpu_memory_total
-# gpu_memory_free
-### TODO: add something to query how much memory is it 
-# being used there.
-
-# memory_total
-# memory_free
 
 # TODO: perhaps it is possible to run the model in such a way that makes 
 # it easy to wait for the end of the process, and then just gets the results.
@@ -4710,19 +4334,6 @@ def wait(x, units='s'):
 # NOTE: it is a good idea to think about one ssh call as being one remote 
 # function call.
 
-# in the generation of calls lines, it is a good idea to see other aspects.
-
-# also return the gpus that are free.
-
-# TODO: should also be easy to check 
-
-# it ssh for this.
-
-# ignore the GPUs that are down.
-# add functionality to use server if resources are available.
-
-# what if something does not succeed, it still gives back something relevant.
-
 ## TODO: get to the point were I can just push something to the server 
 # and it would work.
 
@@ -4732,17 +4343,9 @@ def wait(x, units='s'):
 
 # these tree wise dictionaries
 
-# it is always based on the element. 
-# for example, I think.
-
-# it has to be a 
-
 # this is nice for dictionary exploration
 
-
 # TODO: it is probably a good idea to keep information about the model.
-
-
 
 # ideally, you just want to run things once.
 # also, perhaps, I would like to just point at the folder and have it work.
@@ -4812,8 +4415,6 @@ def wait(x, units='s'):
 # csv functionality in python
 
 # look at interfacing nicely with pandas for some dataframe preprocessing.  
-
-# add stuff to zip and unzip lists of tuples.
 
 # NOTE: neat tools for packing and unpacking are needed. this is necessary 
 # to handle this information easily.
@@ -4886,7 +4487,11 @@ def wait(x, units='s'):
 
 # TODO: work on featurizers. this one should be simple to put together.
 
-# TODO: write filter for a dictionary.
+# NOTE: it is a question of looking at the number of mistakes of a 
+# model and see how they are split between types of examples.
+
+# or generate confusion matrices easily, perhaps with bold stuff for the largest
+# off-diagonal entries.
 
 
 
@@ -4936,6 +4541,9 @@ def node_information():
     return platform.node()
 
 
+# TODO: function to get a minimal description of the machine in which 
+# the current model is running on. 
+
 ### TODO: check the overfit test, meaning that I can 
 # 
 
@@ -4946,6 +4554,10 @@ def node_information():
 
 # TODO: dumb data for debugging. this is important to check that the model is working correctly.
 
+# question about the debbuging. should be a sequence of 
+# objects with some descriptive string. the object should probably also
+# generate a string to print to a file.
+# this makes sense and I think that it is possible.
 
 # TODO: a logging object.
 # can have a lot of state.
@@ -5006,3 +4618,111 @@ def node_information():
 
 # add a function to say which one should be the empty cell placeholder in the 
 # table.
+
+# TODO: stuff for error analysis. what are the main mistakes that the model 
+# is doing. there should exist a simple way of filtering examples by the number
+# of mistakes.
+
+# curious how debugging of machine learning systems work. based on performance.
+# differential testing.
+
+# TODO: it should be easy to specify some composite patience clock.
+
+# TODO: generate powers of two, powers of 10, 
+
+# have default values for the hyperparameters that you are looking at.
+# for example, for step sizes, there should exist a default search range.\
+
+# TODO: question about debugging models
+
+# TODO: do the featurizer and add a few common featurizers for cross product
+# and bucketing and stuff.
+
+# think about how to get the featurizer, that can be done either through 
+# it's creation or it is assumed that the required information is passed as 
+# argument.
+
+# this is a simple map followed by a sort or simply sorting by the number of 
+# mistakes or something like that.
+# perhaps something more explicit about error analysis.
+
+# generation of synthetic data.
+
+# TODO: think about the implementation of some stateful elements. 
+# I think that the implementation of beam search in our framework is something 
+# worthy.
+
+# simple binarization, 
+
+# TODO: check utils to train models online. there may exist stuff that 
+# can be easily used.
+
+# TODO: simple interface with DeepArchitect.
+
+# TODO: interface with Pandas to get feature types of something like that 
+# I think that nonetheless, there is still information that needs to 
+# be kept.
+
+# one simple way of getting these models is by doing a Kaggle competition, 
+# and winning it.
+
+# TODO: stuff to manage state. for example, feature updates when something 
+# changes, but otherwise, let it be.
+
+# this can be done in the form of something that is ran when a condition is 
+# satisfied, but otherwise does nothing.
+# the condition may be having changes to the state and calling it
+# this is lazy computation.
+
+# how to switch once it is finished.
+
+# tests to make the model fail very rapidly if there are bugs.
+# functions to analyse those results very rapididly.
+
+# TODO: stuff for checkpointing, whatever that means.
+
+# add functionality to send email once stops or finishes. 
+# this helps keep track of stuff.
+
+# TODO: some easy interfacing with Pandas would be nice.
+# for example to create some dictionaries and stuff like that.
+
+# very easy to work on some of these problems, for example, 
+# by having some patterns that we can use. this is interesting in terms of 
+# model composition, what are typical model composition strategies?
+# for example, for models with embeddings.
+
+# TODO: functionality to work with ordered products.
+
+# NOTE: perhaps it is possible to keep scripts out of the main library folder,
+# by making a scripts folder. check if this is interesting or not.
+# still, the entry point for running this code would be the main folder.
+# of course, this can be changed, but perhaps it does not matter too much.
+
+# NOTE: what about stateful feature extraction. that seems a bit more 
+# tricky.
+
+# there is the modelling aspect of the problem. what can be done.
+
+# TODO: axis manipulation and transposition.
+
+# TODO: online changes to configurations of the experiment. 
+# this would require loading all the files, and subsituting them by some
+# alteration. this is kind of like a map over the experiments folder. 
+# it does not have to return anything, but it can really, I think.
+# returning the prefix to the folder is the right way of doing things.
+
+# make it easy to do the overfit tests. 
+# it is a matter of passing a lot of fit functions. this can be 
+# done online or by sampling a bunch of models from some cross product.
+
+# try a linear model for debugging. try multiple.
+# differential testing.
+
+# sorting and stuff like that is a good way of 
+
+# function to convert to ordered dict.
+
+
+# NOTE: some of these aspects can be better done using the structure 
+# information that we have introduced before.
