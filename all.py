@@ -44,6 +44,12 @@ def create_dataframe(ds, abort_if_different_keys=True):
     df = pandas.DataFrame(df_d)
     return df
 
+def copy_update_dict(d, d_other):
+    proc_d = dict(d)
+    proc_d.update(d_other)
+
+    return proc_d
+
 def merge_dicts(ds):
     out_d = {}
     for d in ds:
@@ -282,9 +288,12 @@ def read_csvfile(fpath, sep=',', has_header=True):
 
 # TODO: there is also probably some functionality for this.
 def write_csvfile(ds, fpath, sep=',',
-        write_header=True, abort_if_different_keys=True):
+        write_header=True, abort_if_different_keys=True, sort_keys=False):
 
     ks = key_union(ds)
+    if sort_keys:
+        ks.sort()
+
     assert (not abort_if_different_keys) or len( key_intersection(ds) ) == len(ks)
 
     lines = []
@@ -516,7 +525,7 @@ def argsort(xs, fns, increasing=True):
     def key_fn(x):
         return tuple( [f(x) for f in fns] )
     
-    idxs, _ = tb.zip_toggle( 
+    idxs, _ = zip_toggle( 
         sorted( enumerate( xs ), 
             key=lambda x: key_fn( x[1] ), 
             reverse=not increasing ) )
@@ -1700,9 +1709,9 @@ class Sequence:
     def append(self, x):
         self.data.append(x)
 
-# TODO: these all need to be tested.
+# TODO: this can be done with the patience counter.
 class PatienceRateSchedule:
-    def __init__(self, rate_init=1.0e-3, rate_mult=0.1, rate_patience=5, 
+    def __init__(self, rate_init, rate_mult, rate_patience,  
             rate_max=np.inf, rate_min=-np.inf, minimizing=True):
  
         assert (rate_patience > 0 and (rate_mult > 0.0 and rate_mult <= 1.0) and
@@ -1784,6 +1793,20 @@ class ConstantRateSchedule:
     def get_rate(self):
         return self.rate
 
+class StepwiseRateSchedule:
+    def __init__(self, rates, durations):
+        assert len( rates ) == len( durations )
+
+        self.schedule = PiecewiseSchedule( 
+            [ConstantRateSchedule(r) for r in rates],
+            durations)
+
+    def update(self, v):
+        pass
+    
+    def get_rate(self):
+        return self.schedule.get_rate()
+
 class PiecewiseSchedule:
     def __init__(self, schedules, durations):
        
@@ -1810,38 +1833,46 @@ class PiecewiseSchedule:
     def get_rate(self):
         return self.schedules[self.idx].get_rate()
 
-class StopCounter:
-    def __init__(self, stop_patience, minimizing=True):
-        assert stop_patience >= 0
-
-        self.stop_patience = stop_patience
-        self.minimizing = minimizing
+class PatienceCounter:
+    def __init__(self, patience, init_val=None, minimizing=True, improv_thres=0.0):
+        assert patience > 0 
         
-        self.counter = self.stop_patience
-        self.prev_value = np.inf if minimizing else -np.inf
-        self.num_steps = 0
-    
+        self.minimizing = minimizing
+        self.improv_thres = improv_thres
+        self.patience = patience
+        self.counter = patience
+
+        if init_val is not None:
+            self.best = init_val
+        else:
+            if minimizing:
+                self.best = np.inf
+            else:
+                self.best = - np.inf
+
     def update(self, v):
         assert self.counter > 0
 
-        if (self.minimizing and v < self.prev_value) or (
-                (not self.minimizing) and v > self.prev_value) :
-            self.counter = self.rate_patience
-        else:
-            self.counter -= 1
+        # if it improved, reset counter.
+        if (self.minimizing and self.best - v > self.improv_thres) or (
+            (not self.minimizing) and v - self.best > self.improv_thres) :
+
+            self.counter = self.patience
         
-        self.prev_value = v
-        self.num_steps += 1
+        else:
+
+            self.counter -= 1
+
+        # update with the best seen so far.
+        if self.minimizing:
+            self.best = min(v, self.best)  
+        
+        else: 
+            self.best = max(v, self.best)
 
     def has_stopped(self):
         return self.counter == 0
     
-    def reset(self):
-        self.counter = self.stop_patience
-        self.num_steps = 0
-
-## TODO: implement the fix decrease schedule and stuff like that.
-# commonly used in training architectures.
 
 ### for storing the data
 class InMemoryDataset:
@@ -2363,9 +2394,13 @@ def load_experiment_folder(exp_folderpath, json_filenames,
 ### useful for generating configurations to run experiments.
 import itertools 
 
-def generate_config_args(d, tuple_fmt=True):
+def generate_config_args(d, ortho=False):
     ks = d.keys()
-    vs_list = iter_product( [d[k] for k in ks] )
+    if not ortho:
+        vs_list = iter_product( [d[k] for k in ks] )
+    else:
+        vs_list = iter_ortho_all( [d[k] for k in ks], [0] * len(ks))
+            
     argvals_list = []
     for vs in vs_list:
         proc_v = []
@@ -2385,11 +2420,8 @@ def generate_config_args(d, tuple_fmt=True):
 
             else:
                 proc_v.append( v )
-        
-        if tuple_fmt: 
-            argvals_list.append( tuple( proc_v ) )
-        else:
-            argvals_list.append( proc_v )
+
+        argvals_list.append( proc_v )
 
     # unpacking if there are multiple tied argnames
     argnames = []
@@ -2401,8 +2433,56 @@ def generate_config_args(d, tuple_fmt=True):
     
     # guarantee no repeats.
     assert len( set(argnames) ) == len( argnames ) 
+    
+    # resorting the tuples according to sorting permutation.
+    idxs = argsort(argnames, [ lambda x: x ] )
+    argnames = apply_permutation(argnames, idxs)
+    argvals_list = [apply_permutation(vs, idxs) for vs in argvals_list]
 
     return (argnames, argvals_list)
+
+# NOTE: this has been made a bit restrictive, but captures the main functionality
+# that it is required to generate the experiments.
+def copy_regroup_config_generator(d_gen, d_update):
+    
+    # all keys in the regrouping dictionary have to be in the original dict
+    flat_ks = []     
+    for k in d_update:
+        if isinstance(k, tuple):
+            assert all( [ ki in d_gen for ki in k ] )
+            flat_ks.extend( k )
+        else:
+            assert k in d
+            flat_ks.append( k )
+
+    # no tuple keys. NOTE: this can be relaxed by flattening, and reassigning,
+    # but this is more work. 
+    assert all( [ not isinstance(k, tuple) for k in d] )
+    # no keys that belong to multiple groups.
+    assert len(flat_ks) == len( set( flat_ks ) ) 
+
+    # regrouping of the dictionary.
+    proc_d = dict( d_gen )
+    
+    for (k, v) in d_update.iteritems():
+        
+        # check that the impi
+        assert all( [ 
+            ( ( not isinstance(vi, tuple) ) and ( not isinstance(vi, tuple) ) ) or 
+            len( vi ) == len( k )
+                for vi in v ] )
+
+        if isinstance(k, tuple):
+
+            # remove the original keys
+            map(proc_d.pop, k)
+            proc_d[ k ] = v
+
+        else:
+
+            proc_d[ k ] = v
+
+    return proc_d
 
 # TODO: syncing folders
 
@@ -4726,3 +4806,151 @@ def node_information():
 
 # NOTE: some of these aspects can be better done using the structure 
 # information that we have introduced before.
+
+# TODO: add functionality to make it easy to load models and look at it
+# an analyse them.
+
+# TODO: error inspection is something that is important to understand
+
+# some subset of the indices can be ortho while other can be prod.
+
+# TODO: in the config generation, it needs to be done independently for 
+# each of the models. for example, the same variables may be there
+# but the way they are group is different.
+
+# TODO: for the copy update, it is not a matter of just copying
+# I can also change some grouping around. for example, by grouping 
+# some previously ungrouped variables.
+# it is possible by rearranging the groups.
+# the new grouping overrides the previous arrangement. 
+# this may be tricky in cases, where the previous ones where tied.
+# perhaps it is better to restrict the functionality at first.
+
+# the simple cases are very doable, the other ones get a little more tricky.
+
+# composite parameters that get a list of numbers are interesting, but have
+# not been used much yet. it is interesting to see 
+# how they are managed by the model.
+
+# managing subparsers, like what is necessary or what is not is important
+# for example, certain options are only used for certain configurations.
+
+# TODO: add the change learning rate to the library for pytorch.
+
+# TODO: I have to make sure that the patience counters work the way I expect 
+# them to when they are reset, like what is the initial value in that case.
+# for example, this makes sense in the case where what is the initial 
+# number that we have to improve upon.
+# if None is passed, it has to improve from the best possible.
+
+# the different behaviors for the optimizers are nice and should work nicely 
+# in practice.
+# for example, the training model that we are looking at would have a 
+# update to the meta model within each cost function
+
+# for the schedules, it is not just the prev value, it is if it improves on the 
+# the prev value or not.
+
+# TODO: functionality to rearrange dictioaries, for example, by reshuffling things
+# this is actually quite tricky.
+
+# simply having different models under different parts of what we care about.
+
+# make better use of dictionaries for functions with a variable number of 
+# arguments.
+
+# TODO: have an easy way of doing a sequence of transformations to some 
+# objects. this is actually quite simple. can just just
+def transform(x, fns):
+    for f in fns:
+        x = f( x )
+    return y
+
+
+# TODO: do some form of applying a function over some sequence, 
+# while having some of the arguments fixed to some values. 
+# the function needs to have all the other arguments fixed.
+
+# TODO: also make it simple to apply a sequence of transformations 
+# to the elements of a string.
+
+# functional stuff in python to have more of the data working.
+# for exmaple, so simple functions that take the data 
+
+def to_list_fn(f):
+    return lambda xs: map(f, xs)
+
+
+# think about unpacking a tuple with a single element. how is this different.
+
+# TODO: dict updates that returns the same dictionary, such that they 
+# can be sequenced easily.
+
+# TODO: easy to build something that needs to be ran in case some condition 
+# is true.
+
+# easy to run things conditionally, like only runs a certain function 
+# if some condition is true, otherwise returns the object unchanged.
+
+# TODO: a trailling call is going to be difficult, as it is not an object in 
+# general, nesting things, makes it less clear. otherwise, it can 
+# pass as a sequence of things to execute. looks better.
+# conditions.
+
+# NOTE: a bunch of featurizers that take an object and compute something based 
+# on that object. featurizers based on strings an 
+
+# sequence of transformations.
+# use better the vertical space.
+
+# keep stuff like job and node id in the config.
+
+# the toolbox about the counters needs to be more sophisticated.
+
+# TODO: add variable time backoff rates.
+
+# TODO: code to run a function whenever some condition is verified.
+# TODO: code to handle the rates and to change the schedules whenever some 
+# condition is verified.
+
+# TODO: stuff with glob looks nice.
+
+# TODO: an interesting thing is to have an LSTM compute an embedding for the 
+# unknown words. I think that this is a good compromise between 
+# efficiency and generalization.
+
+# NOTE: this is going to be difficult.
+
+# NOTE: some auxiliary functions that allows to easily create a set of experiments 
+# there are also questions.
+
+# stuff to append directly to the registered configs.
+
+# partial application is sufficient to get things to work nicely.
+
+# it is a matter of how things can be done.
+
+
+## NOTE: something like this such that it just loads the weights and then 
+# it is ready to apply it to data.
+# class PretrainedModel:
+
+#     def predict(self, ):
+#         pass
+
+# TODO: it is important to generate a csv with a few things and be able to look 
+# at it. 
+# tables are easy to look for sweeps, but it is harder to understand 
+# other aspects.
+
+# it is harder to read, but I think that with a sorting function becomes
+# easier.
+
+# each config may have a description attached.
+
+# NOTE: some of the stuff from the plots can come out of current version of
+# of the plots.
+
+# NOTE: possibility of a adding a few common experiment structures.
+
+# easy way of doing subexperiments, but with prefixes and stuff.
