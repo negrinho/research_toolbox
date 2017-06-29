@@ -4954,3 +4954,240 @@ def to_list_fn(f):
 # NOTE: possibility of a adding a few common experiment structures.
 
 # easy way of doing subexperiments, but with prefixes and stuff.
+
+# NOTE: I think that it is probably important
+
+# the run script for a group of experiments is going to be slighly different
+# what can be done there. it would be inconvenient for large numbers to send 
+# it one by one. I guess it it possible to easily do it, so not too much of a 
+# problem.
+
+# TODO: ortho increments to a current model that may yield improvements.
+# or just better tools to decide on what model to check.
+
+# I think that it is going to be important to manage the standard ways of 
+# finding good hyperparameters.
+
+
+### NOTE: this function can be adapter to read stuff from a column wise format 
+### file, perhaps with some specification of how things should go about dealing
+# with conversions of certain colunns.
+# def load_data(fpath, word_cidx, tag_cidxs, lowercase):
+#     with open(fpath, 'r') as f:
+#         sents = []
+#         tags = []
+#         s = []
+#         t = []        
+#         for line in f:
+#             line = line.strip()
+#             if line == '' and len(s) > 0:
+#                 sents.append(s)
+#                 tags.append(t)
+#                 s = []
+#                 t = []
+#             else:
+#                 fields = line.split()
+#                 if lowercase:
+#                     s.append(fields[word_cidx].lower())
+#                 else:
+#                     s.append(fields[word_cidx])
+#                 t.append( [ fields[i] for i in tag_cidxs] )
+            
+#     return (sents, tags)
+
+### TODO: I think that this is a more appropriate part of the model.
+# it makes more sense to keep things like this.
+
+# # # load some of the columns in a text file.
+# def load_data(fpath, idxs):
+#     assert len( idxs ) > 0
+
+#     with open(fpath, 'r') as f:
+#         rs = [ [] for _ in idxs ] 
+
+#         rs_i = [ [] for _ in idxs ]        
+#         for line in f:
+#             line = line.strip()
+#             if line == '' and len( rs_i[0] ) > 0:
+
+#                 # append each of the senteces to the ones already present.        
+#                 for r, ri in zip(rs, rs_i):
+#                     r.append(ri)
+
+#                 rs_i = [ [] for _ in idxs ]        
+
+#             else:
+#                 fields = line.split()
+
+#                 for i, idx in enumerate(idxs):
+#                     rs_i[i].append( fields[idx] )
+#     return rs
+
+# this can be convenient to read csv files.
+# reading a csv file is easy if you do not want to convert things to other 
+# format.
+
+
+# manipulation of the different parts of the model is important because I'm 
+# not sure about how to go about it.
+
+# TODO: handle cases with variable output depending on the arguments that are 
+# passed. returning a dictionary seems like a good compromise.
+
+# TODO: stuff to inspect the mistakes that wer
+
+# TODO: add function to check everybody's usage on matrix. same thing for 
+# lithium and matrix.
+
+# TODO: functions to inspect the mistakes made by the model.
+
+# NOTE: some of these consistency checks can be done automatically.
+
+# TODO: something to randomize the training data, and to keep some set of sentences
+# aligned.
+# TODO: some tests like checking agreement of dimensions.
+# or for paired iteration: that is pretty much just izip or something like that.
+
+# TODO: another test that may be worth validating is that the model, 
+# may have some property that must be satisfied between pairs of the models.
+# using stuff in terms of dictionaries is nice.
+
+# TODO: splitting stuff is tricky. 
+# that needs to be done easily 
+# st
+
+# TODO: better way of maintaining invariants in Python.
+# how can that be done.
+
+# TODO: differential testing, given the same prediction files, are there mistakes 
+# that one model makes that the other does not.
+# having a function to check this is interesting.
+
+# mistakes per token.
+# mistakes per tag.
+# mistakes per sentence.
+# there is also stuff that can be done in the model.
+# some aux functions to handle error checking in sequences.
+
+
+# stuff to go back and train on all data. check this.
+
+# NOTE: it is important to ammortize effort. is it possible to write aux functions 
+# for this.
+
+### some useful assert checks.
+# NOTE: this is recursive, and should be applied only to sequences 
+# of examples.
+
+def assert_length_consistency(xs_lst):
+    assert len( set(map(len, xs_lst) ) ) == 1
+
+    for i in xrange( len(xs_lst) ):
+        assert set( [len(xs[i]) for xs in xs_lst] ) == 1
+
+### utility functions for exploring mistakes in sequence data.
+
+# NOTE: should I sort the sentences or just use them as they are.
+
+def mistakes_per_token(sents, gold_tags, pred_tags):
+    pass
+
+def mistakes_per_tag(sents, gold_tags, pred_tags):
+    pass
+
+def mistakes_per_sentence(sents, gold_tags, pred_tags):
+    pass
+
+def metric_per_sentence(sents, gold_tags, pred_tags, fn):
+    pass
+
+# TOOD: something that can be computed per length.
+
+### TODO: another important thing is managing the experiments.
+# this means that
+
+# TODO: perhaps important to keep a few torch models 
+# and stuff.
+
+# TODO: the tensorflow models can be kept in a different file.
+
+# TODO: add code to deal with the exploration of the results.
+# TODO: also some tools for manipulation with LSTMs.
+
+# TODO: stuff to build essembles easily.
+
+# TODO: add stuff for initial step size tuning.
+
+# TODO: add functionality to run DeepArchitect on the matrix server.
+
+
+# TODO: check on 
+
+# TODO: stuff on synthetic data.
+
+# TODO: 
+
+
+def shuffle_tied(xs_lst):
+    assert len(xs_lst) > 0 and len(map(len, xs_lst)) == 1
+
+    n = len( xs_lst[0] )
+    idxs = random_permutation(n)
+    ys_lst = [apply_permutation(xs, idxs) for xs in xs_lst]
+    return ys_lst
+
+
+
+### Categories:
+# - utils
+# - io
+# - experiments
+# - plotting
+# - compute
+# - analysis (this is kind like plotting)
+# - system
+# - optimization
+# - preprocessing
+# - data
+# - tensorflow
+# - pytorch
+# - (other stuff for )
+# - what about the featurizer.
+# - asserts and stuff.
+
+# TODO: find a good way of keeping these categories in a way that 
+# makes sense.
+
+
+# TODO: add funcitons that do high level operations.
+
+# TODO: finally finish using 
+
+# TODO: add function doing cross validation, that is then ran on the 
+# full dataset.
+
+# TODO: batchification
+
+# TODO: stuff for cross validation . it has to be more general than the 
+# stuff that was done in scikit-learn.
+
+# TODO: best of three runs.
+
+# TODO: integration with other functionality that is simple to run.
+
+# NOTE: the worskpace gets very messy.
+# the problem is dealing with the scheduling of all these parameters.
+# it may be difficult.
+# can have multiple schedules that require some informaiotn.
+# perhaps publishing subscribing, but the only purpose is really just free the search 
+# space.
+
+# managing validation.
+
+# are there things that are common to all models and all experiments.
+
+# TODO: stuff to apply repeatedly the same function.
+
+# handling multiple datasets is interesting. what can be done there?
+
+# how to manage main files and options more effectively.
