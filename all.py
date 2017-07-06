@@ -21,6 +21,14 @@ import functools
 def partial_apply(fn, d):
     return functools.partial(fn, **d)
 
+def to_list_fn(f):
+    return lambda xs: map(f, xs)
+
+def transform(x, fns):
+    for f in fns:
+        x = f( x )
+    return y
+
 ### dictionary manipulation
 import pprint
 import pandas
@@ -509,7 +517,7 @@ def shuffle(xs):
     random.shuffle(idxs)
 
     return [xs[i] for i in idxs]
-        
+
 def random_permutation(n):
     idxs = range( n )
     random.shuffle(idxs)
@@ -549,6 +557,14 @@ def apply_inverse_permutation(xs, idxs):
         out_xs[i_to] = xs[i_from]
     
     return out_xs
+
+def shuffle_tied(xs_lst):
+    assert len(xs_lst) > 0 and len(map(len, xs_lst)) == 1
+
+    n = len( xs_lst[0] )
+    idxs = random_permutation(n)
+    ys_lst = [apply_permutation(xs, idxs) for xs in xs_lst]
+    return ys_lst
 
 ### date and time
 import datetime
@@ -741,7 +757,6 @@ class Logger:
 
         self.f.write( s + '\n' )
 
-
 # for keeping track of configurations and results for programs
 class ArgsDict:
     def __init__(self, fpath=None):
@@ -851,7 +866,6 @@ def memory_total(units='mb'):
 def memory_free(units='mb'):
     return convert_between_byte_units(psutil.virtual_memory().available, dst_units=units)
 
-# TODO: needs some error checking in case of no gpus. needs a try catch block.
 def gpus_total():
     try:
         n = len(subprocess.check_output(['nvidia-smi', '-L']).strip().split('\n'))
@@ -1232,7 +1246,7 @@ class LithiumRunner:
                     r['mem_mbs_free'] -= convert_between_byte_units(
                         x['mem_budget'], src_units=x['mem_units'], dst_units='mb')
                     r['free_gpu_ids'] = r['free_gpu_ids'][ x['num_gpus'] : ]
-                    assigned = True
+                    # assigned = True
                     break
             
             # if not assigned, terminate without doing anything.
@@ -1848,7 +1862,7 @@ class PatienceCounter:
             if minimizing:
                 self.best = np.inf
             else:
-                self.best = - np.inf
+                self.best = -np.inf
 
     def update(self, v):
         assert self.counter > 0
@@ -1872,7 +1886,40 @@ class PatienceCounter:
 
     def has_stopped(self):
         return self.counter == 0
+
+# example
+# cond_fn = lambda old_x, x: old_x['acc'] < x['acc']
+# state_fn = lambda x: tb.copy_update_dict(x, { 'model' : x['model'].save_dict() })
+class Checkpoint:
+    def __init__(self, cond_fn, state_fn):
+        self.state = None
     
+    def update(self, x):
+        if cond_fn(self.state, x):
+            self.state = state_fn(x)
+    
+    def get(self):
+        return self.state    
+
+def get_best(eval_fns, minimize):
+    best_i = None
+    if minimize:
+        best_v = np.inf
+    else:
+        best_v = -np.inf
+
+    for i, fn in enumerate(eval_fns):
+        v = fn()
+        if minimize:
+            if v < best_v:
+                best_v = v
+                best_i = i
+        else:
+            if v > best_v:
+                best_v = v
+                best_i = i
+    
+    return (best_i, best_v)
 
 ### for storing the data
 class InMemoryDataset:
@@ -2452,12 +2499,12 @@ def copy_regroup_config_generator(d_gen, d_update):
             assert all( [ ki in d_gen for ki in k ] )
             flat_ks.extend( k )
         else:
-            assert k in d
+            assert k in d_gen
             flat_ks.append( k )
 
     # no tuple keys. NOTE: this can be relaxed by flattening, and reassigning,
     # but this is more work. 
-    assert all( [ not isinstance(k, tuple) for k in d] )
+    assert all( [ not isinstance(k, tuple) for k in d_gen] )
     # no keys that belong to multiple groups.
     assert len(flat_ks) == len( set( flat_ks ) ) 
 
@@ -2466,7 +2513,7 @@ def copy_regroup_config_generator(d_gen, d_update):
     
     for (k, v) in d_update.iteritems():
         
-        # check that the impi
+        # check that the dimensions are consistent.
         assert all( [ 
             ( ( not isinstance(vi, tuple) ) and ( not isinstance(vi, tuple) ) ) or 
             len( vi ) == len( k )
@@ -2568,6 +2615,28 @@ def test_with_fn(ds, fn):
             bad_ds.append( d )
     
     return (good_ds, bad_ds)
+
+def assert_length_consistency(xs_lst):
+    assert len( set(map(len, xs_lst) ) ) == 1
+
+    for i in xrange( len(xs_lst) ):
+        assert set( [len(xs[i]) for xs in xs_lst] ) == 1
+
+
+### utility functions for exploring mistakes in sequence data.
+def mistakes_per_token(sents, gold_tags, pred_tags):
+    pass
+
+def mistakes_per_tag(sents, gold_tags, pred_tags):
+    pass
+
+def mistakes_per_sentence(sents, gold_tags, pred_tags):
+    pass
+
+def metric_per_sentence(sents, gold_tags, pred_tags, fn):
+    pass
+
+# NOTE: should I sort the sentences or just use them as they are.
 
 
 # NOTE: this can be done differently and have options that determine if something 
@@ -2792,56 +2861,6 @@ def wait(x, units='s'):
 # this is also useful to keep around.
 
 # check if I can get the current process pid.
-
-# def run_cross_validation(train_matrix, train_vector, fold_generator_function,
-#     fit_function, score_function):
-
-#     # for each fold of the training data
-#     score_list = list()
-#     for train_fold_index, test_fold_index in fold_generator_function():
-#         # train partition
-#         train_fold_matrix = train_matrix[train_fold_index]
-#         train_fold_vector = train_vector[train_fold_index]
-#         # test partition
-#         test_fold_matrix = train_matrix[test_fold_index]
-#         test_fold_vector = train_vector[test_fold_index]
-
-#         # train the model in training fold
-#         fitted_model = fit_function(train_fold_matrix, train_fold_vector)
-
-#         # score the fitted model on the test partition
-#         fold_score = score_function(fitted_model, test_fold_matrix, test_fold_vector)
-#         score_list.append(fold_score)
-
-#     return np.mean(score_list)
-
-# NOTE: can be done more generically.
-# fit_functions, score_functions. that is it
-# the fit and score already have the dataset there
-# cross_validation is a single score...
-# also needs to return the index of the scoring function.
-
-# # NOTE in the score function, bigger is better
-# def get_best_regularization_parameter(train_matrix, train_vector,
-#     regularization_params_list, fold_generator_function, fit_function_factory,
-#     score_function):
-
-#     # best params for the model that we are training
-#     best_params = None
-#     best_score = - np.inf
-#     for reg_params in regularization_params_list:
-#         # NOTE that the parameters are a tuple
-#         fit_function = fit_function_factory(*reg_params)
-
-#         # compute the score according to cross validation
-#         score = run_cross_validation(train_matrix, train_vector,
-#             fold_generator_function, fit_function, score_function)
-
-#         if score > best_score:
-#             best_score = score
-#             best_params = reg_params
-
-#     return (best_params, best_score)
 
 # managing some experimental folders and what not.
 
@@ -4861,10 +4880,6 @@ def node_information():
 
 # TODO: have an easy way of doing a sequence of transformations to some 
 # objects. this is actually quite simple. can just just
-def transform(x, fns):
-    for f in fns:
-        x = f( x )
-    return y
 
 
 # TODO: do some form of applying a function over some sequence, 
@@ -4876,9 +4891,6 @@ def transform(x, fns):
 
 # functional stuff in python to have more of the data working.
 # for exmaple, so simple functions that take the data 
-
-def to_list_fn(f):
-    return lambda xs: map(f, xs)
 
 
 # think about unpacking a tuple with a single element. how is this different.
@@ -5063,12 +5075,6 @@ def to_list_fn(f):
 # that one model makes that the other does not.
 # having a function to check this is interesting.
 
-# mistakes per token.
-# mistakes per tag.
-# mistakes per sentence.
-# there is also stuff that can be done in the model.
-# some aux functions to handle error checking in sequences.
-
 
 # stuff to go back and train on all data. check this.
 
@@ -5078,28 +5084,6 @@ def to_list_fn(f):
 ### some useful assert checks.
 # NOTE: this is recursive, and should be applied only to sequences 
 # of examples.
-
-def assert_length_consistency(xs_lst):
-    assert len( set(map(len, xs_lst) ) ) == 1
-
-    for i in xrange( len(xs_lst) ):
-        assert set( [len(xs[i]) for xs in xs_lst] ) == 1
-
-### utility functions for exploring mistakes in sequence data.
-
-# NOTE: should I sort the sentences or just use them as they are.
-
-def mistakes_per_token(sents, gold_tags, pred_tags):
-    pass
-
-def mistakes_per_tag(sents, gold_tags, pred_tags):
-    pass
-
-def mistakes_per_sentence(sents, gold_tags, pred_tags):
-    pass
-
-def metric_per_sentence(sents, gold_tags, pred_tags, fn):
-    pass
 
 # TOOD: something that can be computed per length.
 
@@ -5124,18 +5108,6 @@ def metric_per_sentence(sents, gold_tags, pred_tags, fn):
 # TODO: check on 
 
 # TODO: stuff on synthetic data.
-
-# TODO: 
-
-
-def shuffle_tied(xs_lst):
-    assert len(xs_lst) > 0 and len(map(len, xs_lst)) == 1
-
-    n = len( xs_lst[0] )
-    idxs = random_permutation(n)
-    ys_lst = [apply_permutation(xs, idxs) for xs in xs_lst]
-    return ys_lst
-
 
 
 ### Categories:
@@ -5191,3 +5163,122 @@ def shuffle_tied(xs_lst):
 # handling multiple datasets is interesting. what can be done there?
 
 # how to manage main files and options more effectively.
+
+# TODO: it is interesting to think about how can the featurizers be applied to 
+# a sequence context. that is more tricky. think about CRFs and stuff like that.
+
+# TODO: think about an easy map of neural network code to C code, or even to 
+# more efficient python code, but that is tricky.
+
+# think about when does something become so slow that it turns impractical?
+# 
+
+# TODO: look into how to use multi-gpu code.
+
+# TODO: tools for masking and batching for sequence models and stuff.
+# these are interesting. 
+
+# for example, in the case of beam search, this would imply having a pad 
+# sequence.
+
+# check mongo db or something like that, and see if it is worth it.
+
+# how would beam search look on tensorflow, it would require executing with the 
+# current parameters, and the graph would have to be fixed.
+
+# TODO: masking in general is quite interesting.
+
+# possible to add words in some cases with small descriptions to the experiments.
+
+# by default, the description can be the config name.
+
+# the only thing that how approach changes is the way the model is trained.
+
+# beam search only changes model training.
+
+# is it possible to use the logger to safe information to generate results or 
+# graphs.
+
+# in tensorflow and torch, models essentially communicate through 
+# variables that they pass around.
+
+# for trading of computation and safety of predictions. 
+# check that this is in fact possible. multi-pass predictions.
+
+# TODO: an interesting interface for many things with state is the 
+# step; and query functions that overall seem to capture what we care about.
+
+# TODO: encode, decode, step, 
+# I think that this is actually a good way of putting this interface.
+
+
+# TODO: check what an efficient implementation in Tensorflow would look like.
+# i.e., beam search.
+
+# TODO: have something very standard to sweep learning rates. 
+# what can be done here?
+
+# TODO: rate annealing in ADAM can be useful.
+
+# TODO: restart from the best previous point some model. 
+# this is tricky to do correctly. how to hangle maintaining the model, 
+# and choosing these things.
+
+# Also, having the learning rate. this is interesting.
+
+# TODO: review all the code and implement a new model.
+
+# TODO: interesting techniques 
+
+# TODO: guidelines for using some other project as a starting point 
+# for research. check that you can get the performance mentioned in the paper.
+# check that your changes did not change, often catatrophically, that you 
+# can still get the performance in the paper.
+
+# NOTE: it is not desirable for the rate counter to always return a step size, 
+# because the optimzers have state which can be thrown away in the case of a 
+# 
+
+# NOTE: default aspects for training. what are the 
+# important parts, like training until things stop decreasing.
+
+# NOTE: writing deep learning code around the notion of a function.
+
+# TODO: stuff to deal with unknown tokens.
+# TODO: sort of the best performance of the model is when it works with 
+# 
+
+# there is all this logic about training that needs to be reused.
+# this is some nice analysis there.
+
+# TODO: notion of replay. do this for training environments.
+
+# you have to get it out of x.
+
+# NOTE: this is kind of like conditional execution.
+
+# some of the stuff that I mention for building networks.
+
+# TODO: construction with the help of map reduce.
+
+
+
+
+## TODO: interface for encoder decoder models.
+
+# TODO: stuff that handles LSTM masking and unmasking.
+
+# NOTE: an interface that write directly to disk is actually 
+# quite nice, 
+
+# pack and unpack. functionality. keeping track of the batch dimension.
+
+# use of map and reduce with hidden layers.
+
+# TODO: perhaps the results can be put in the end of the model.
+
+# padding seems to be done to some degree by the other model.
+
+# TODO: types are inevitable. the question is can we do them without 
+# being burdensome?
+
