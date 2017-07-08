@@ -1887,19 +1887,25 @@ class PatienceCounter:
     def has_stopped(self):
         return self.counter == 0
 
+# NOTE: actually, state_dict needs a copy.
 # example
 # cond_fn = lambda old_x, x: old_x['acc'] < x['acc']
-# state_fn = lambda x: tb.copy_update_dict(x, { 'model' : x['model'].save_dict() })
+# save_fn = lambda x: tb.copy_update_dict(x, { 'model' : x['model'].save_dict() })
+# load_fn = lambda x: x,
+# for example, but it allows more complex functionality.
 class Checkpoint:
-    def __init__(self, cond_fn, state_fn):
-        self.state = None
+    def __init__(self, initial_state, cond_fn, save_fn, load_fn):
+        self.state = initial_state
+        self.cond_fn = cond_fn
+        self.save_fn = save_fn
+        self.load_fn = load_fn
     
     def update(self, x):
-        if cond_fn(self.state, x):
-            self.state = state_fn(x)
+        if self.cond_fn(self.state, x):
+            self.state = self.save_fn(x)
     
     def get(self):
-        return self.state    
+        return self.load_fn( self.state )
 
 def get_best(eval_fns, minimize):
     best_i = None
@@ -2592,6 +2598,8 @@ def create_project_folder(folderpath, project_name):
 
 
 ### simple tests and debugging that are often useful.
+import itertools
+
 def test_overfit(ds, overfit_val, overfit_key):
     ov_ds = []
     err_ds = []
@@ -2615,6 +2623,14 @@ def test_with_fn(ds, fn):
             bad_ds.append( d )
     
     return (good_ds, bad_ds)
+
+# assumes that eq_fn is transitive. can be used to check properties of
+# a set of results.
+def all_equivalent_with_fn(ds, eq_fn):
+    for d1, d2 in itertools.izip(ds[:-1], ds[1:]):
+        if not eq_fn(d1, d2):
+            return False
+    return True
 
 def assert_length_consistency(xs_lst):
     assert len( set(map(len, xs_lst) ) ) == 1
@@ -5282,3 +5298,151 @@ def node_information():
 # TODO: types are inevitable. the question is can we do them without 
 # being burdensome?
 
+# NOTE: even just model checkpoints based on accuracy are a good way of going 
+# about it.
+
+# TODO: the notion of a replay settings. a set of variables that is kept track
+# during various places.
+
+# TODO: notion of driving training, and keeping some set of variables 
+# around that allow me to do that.
+
+# when some condition happens, I can execute a sequence of models.
+
+# keeping the stuff way is a good way of not cluttering the output.
+
+# TODO: notion of keeping enough information that allows me to reconstruct the 
+# information that I care about.
+
+# batching is quite important, and I need to do something that easily goes 
+# from sequences to batches.
+
+# there is a problem with the resets.
+# once it resets, you have to consider where did it reset to, so you can 
+# reduce the step size from there.
+# basically, resetting gets much harder.
+
+# TODO: basically switch between the format of column and row for sequences 
+# of dictionaries. this is going to be simple. also, can just provide an 
+# interface for this.
+
+# TODO: checkpoints with resetting seem like a nice pattern to the model.
+
+# TODO: extend this information about the model to make sure that the model
+# is going to look the way
+
+# it is going to be nice to extend the config generator to make sure that 
+# things work out. for example, different number of arguments, or rather 
+# just sequence multiple config generators or something like that.
+
+# that is simple to do. it is just a matter of extending a lot of stuff.
+
+# improve debbuging messages because this is hard to read.
+
+# TODO: add some plotting scripts for typical things like training and 
+# validation error. make sure that this is easy to do from the checkpoints and 
+# stuff.
+
+# TODO: perhaps for the most part, these models could be independent.
+# this means that they would not be a big deal. this is going to be interesting.
+
+# also, the notion of copying something or serializing it to disk is relevant.
+
+# managing a lot of hyperparameters that keep growing is troublesome.
+# might also be a good idea to use a tuner. 
+
+# check on how to get a simple interface to 
+
+# TODO: this is going 
+
+# TODO: clean for file creation and deletion, this may be useful to group 
+# common operations.
+
+# TODO: registering various clean up operations and stuff like that.
+# that can be done at teh 
+
+# TODO: the replay of these things can be done skipping those that 
+# were skipped, because those are eseentially wasted computation.
+# there is an implied schedule from the replay.
+
+# TODO: tests through config validation.
+
+# TODO: possibility of running multiple times and getting the median.
+
+# TODO: have stuff for pytorch.
+
+# TODO: what is a good way of looking at different results of the model.
+# it would be interesting to consider the case 
+
+# TODO: those runs about rate patiences are the right way of doing things.
+# TODO: add easy support for running once and then running much slower.
+
+# TODO: rates make a large difference.
+
+# TODO: add stuff that forces the reloading of all modules.
+
+# TODO: equivalence between training settings.
+
+# TODO: also, for exploration of different models. what is important to 
+# check layer by layer.
+
+# TODO: visualization of different parts of the model, and statistics. this is 
+# going to be interesting. like exploring how different parts of the model. 
+# change with training time.
+
+# NOTE: things that you do once per epoch do not really matter, as they will be 
+# probably very cheap computationally comparing to the epoch.
+
+# TODO: ways of training the model with different ways.
+
+# TODO: support for differential programming trained end to end.
+
+# TODO: even to find a good configuration, it should be possible to figure 
+# out reasonable configurations by hand.
+
+# TODO: memory augmented with pointer networks.
+
+# TODO: for DeepArchitect is going to be done through notion of functional
+# programming.
+
+# TODO: for hooks with forward and backward. 
+
+# TODO: for DeepArchitect should be simple to 
+
+# TODO: check that LSTM is going. check the sequence. variable length 
+# packed sequence. what does it do?
+
+# equivalence tests. this running multiple configs that you know that 
+# should give the same result.
+
+# TODO: it may be worth to come with some form of prefix code for the experiments
+# it may be worth to sort them according to the most recent.
+
+# TODO: using matplotlib animation can be something interesting to do.
+
+# What kind of animation would be relevant. what are the interesting things 
+# to animate.
+
+# TODO: inteegrate attention mechanisms in DeepArchitect.
+
+# TODO: some stuff to do an ensemble. it should be simple. just average the 
+# predictions of the top models, or do some form of weighting.
+
+# TODO: just analysing the mistakes is going to be interesting. also, it should
+# be easy to train and validate on the true metrics. just change a bit deep 
+# architect.
+
+# it should be trivial to do, perhaps stack a few of these images, or tie
+# the weights completely. maybe not necessary.
+
+# TODO: processing the data is going to be interesting.
+
+# throw some decent model at it. TODO: perhaps do a simple way of paralleizing
+# MCTS with thompson sampling, or something like that. what should be 
+# the posterior. it can be non-parametric, I guess, although it depends on 
+
+# TODO: stuff for easily doing ensembles of models.
+
+# TODO: multi gpu implementation, but this is mostly data parallel.
+
+# TODO: add support for step size tuning.
