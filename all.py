@@ -5446,3 +5446,47 @@ def node_information():
 # TODO: multi gpu implementation, but this is mostly data parallel.
 
 # TODO: add support for step size tuning.
+
+# TODO: make io checkpointers that are a little smarter about when to save
+# A model to disk. only save if it it has improved or it is going down.
+
+# if just based on full predictions, that is fine, but if transitioning 
+# requires running the model, it gets a bit more complicated. multi-gpu 
+# options are possible, and doable. it is a matter of model serving.
+
+# also, the multi-gpu aspect makes it possible.
+
+# TODO: throw away 5 percent of the data where you make the most mistakes and 
+# retrain. perhaps these are training mistakes.
+
+# transpose a nested dict.
+
+# TODO: several step functions to featurize, and perhaps visualize the 
+# results of that model.
+
+# TODO: add features for architectures easily.
+
+# TODO: totally add stuff for cross validation.
+# use the same train and test splits.
+# TODO: perhaps base it around iterables.
+
+# TODO: do train_dev split in a reasonable way.
+# perhaps with indices. how did I do it in CONLL-2000 integrate that.
+
+# TODO: for the seed add support for other things that may have independent 
+# seeds.
+
+# TODO: can add hyperparameters for the data loading too. it 
+# it just get more complicated.
+
+# TODO: in DeepArchitect stop as soon as things go to nan.
+# this is going to be clear in the loss function.
+
+# TODO: look at ways of making this work nicely. for the case of hyperparameter 
+# tuning.
+
+# TODO: add tools for the lightweight toolbox.
+
+# TODO: perhaps add some installation information.
+
+# TODO: also stuff to transfer between 
