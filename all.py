@@ -754,6 +754,9 @@ class Logger:
         
         if desc is not None:
             self.f.write( desc + '\n' )
+        
+        if not isinstance(s, str):
+            s = pprint.pformat(s)
 
         self.f.write( s + '\n' )
 
@@ -2311,7 +2314,6 @@ def create_runall_script_with_parallelization(exp_folderpath):
     exec_bits = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
     os.chmod(out_filepath, st.st_mode | exec_bits)
 
-
 # NOTE: not the perfect way of doing things, but it is a reasonable way for now.
 # main_relfilepath is relative to the project folder path.
 # entry_folderpath is the place it changes to before executing.
@@ -2637,7 +2639,6 @@ def assert_length_consistency(xs_lst):
 
     for i in xrange( len(xs_lst) ):
         assert set( [len(xs[i]) for xs in xs_lst] ) == 1
-
 
 ### utility functions for exploring mistakes in sequence data.
 def mistakes_per_token(sents, gold_tags, pred_tags):
@@ -5490,3 +5491,91 @@ def node_information():
 # TODO: perhaps add some installation information.
 
 # TODO: also stuff to transfer between 
+
+# TODO: introduce some functions that can use the information efficeiently.
+
+# TODO: long range dependencies. LSTM vs convolutional networks.
+
+# TODO: highway networks and stuff. dynamic 
+
+# TODO: searching over attention mechanisms.
+
+# NOTE: something that is not very well done is differential 
+# tables. it should be easy, right? it should be character by character.
+
+# NOTE: add stuff for uniform and logspace.
+
+# TODO: look at writing reentrant code based on checkpoint.json
+
+# TODO: allow aliasing in some configurations. what is the right way 
+# of going about this. I can be done in the experiments preprocessing part.
+
+# NOTE: the aliasing idea for configs is quite nice.
+
+# NOTE: better logging and accumulation of information. 
+# I think that this can be done through registering, and passing 
+# information that uses that registered function to do something. 
+# it is quite clean like this.
+
+# TODO: stuff to maintain aliasing, or to run alias in slightly different 
+# configurations; e.g., sharing some parameters, but having the other ones 
+# fixed to some relevant specification.
+
+# do the stuff for config manager.
+
+# for managing experiments and comparing.
+# to develop something for experiment management, it it is convenient to have 
+# a way of interacting with them online. this would make it.
+
+# of the shelf, reinforcement learning.
+
+# add information for each time a logging event of a given type is called.
+
+# also add the option to do things to the terminal. 
+# it would be convenient to make sure that  I can debug a model in such a way 
+# that it makes it easy to look at differential parts of the score. 
+# what to print in the terminal. there is also the question about suppression, 
+# in the beginning,. the probes that we can use make sense.
+
+# it would be nice to have a way of deactivating the logging somehow.
+
+### copied from somewhere else.
+# Experiment managing
+# * Easy to log everything
+# * Easy to generate plots
+# * Easy to extract results
+# * Easy to run on multiple different machines an merge the results
+# * Easy tools for extracting results and such.
+
+# Aspects:
+#     debugging 
+#     logging
+#     serialization
+#     experiment managing
+#     profiling
+#     loading/writing data
+#     running multiple tasks
+#     wrappers for other code
+
+#     schedules
+#     validation
+#     plotting
+#     structures for dealing with various types of data
+#     keeping checklist of things to do
+#     typical transformations for text
+#     batching
+#     padding
+#     job managing 
+#     ranges
+#     reading and writing configuration files
+#     tools to download things from and to servers.
+#     tools for batching and prediction
+
+# for model serialization.
+
+# think about what would be useful with deep architect.
+
+# some parts are clearly for interactivity.
+
+# easy to push a folder to a server and work there.
+# allows you to keep alias.
