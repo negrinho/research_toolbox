@@ -258,7 +258,7 @@ def write_textfile(fpath, lines, append=False, with_newline=True):
 def read_dictfile(fpath, sep='\t'):
     """This function is conceived for dicts with string keys."""
     lines = read_textfile(fpath)
-    d = dict([lines.split(sep, 1) for line in lines])
+    d = dict([line.split(sep, 1) for line in lines])
     return d
 
 def write_dictfile(fpath, d, sep="\t", ks=None):
@@ -1121,7 +1121,6 @@ def get_lithium_resource_availability(servername, username, password=None,
     run_on_server(delete_script_cmd, servername, username, password)
     return node_to_resources
 
-
 # TODO: add functionality to check if the visible gpus are busy or not 
 # and maybe terminate upon that event.
 ### this functionality is actually quite hard to get right.
@@ -1437,7 +1436,7 @@ def rsync_options(
     if verbose:
         opts += ['--verbose']
 
-    return opts                       
+    return opts      
 
 # there is compression stuff and other stuff.
 
@@ -2640,6 +2639,12 @@ def assert_length_consistency(xs_lst):
     for i in xrange( len(xs_lst) ):
         assert set( [len(xs[i]) for xs in xs_lst] ) == 1
 
+### some useful inspection functions.
+import inspect 
+
+def get_argnames(fn):
+    return inspect.getargspec(fn).args
+
 ### utility functions for exploring mistakes in sequence data.
 def mistakes_per_token(sents, gold_tags, pred_tags):
     pass
@@ -3769,8 +3774,6 @@ def wait(x, units='s'):
 # working in terms of relative paths is crucial for this functionality.
 # for example, generating scripts for running the code in a certain way
 
-# another possibility would be to 
-
 # add functionality for relative directory manipulation.
 
 # TODO: in some cases, it is possible to output things to terminal too.
@@ -3839,7 +3842,6 @@ def wait(x, units='s'):
 # that would be important for getting things to work properly
 
 ## TODO: perhaps I can add information about how to make this work. 
-# 
 
 # important for visualization of mistakes of a model. how to inspect the mistakes?
 # perhaps write a json, or just write some form of function that takes
@@ -3885,8 +3887,6 @@ def wait(x, units='s'):
 # define fields and keep adding to them. serialization through json.
 # loading through json.
 # or perhaps csv. depends on the creation of a new file.
-
-# depends on the 
 
 # take a script and make it some other type of script. example, 
 # from running locally to running on the server.
@@ -5579,3 +5579,54 @@ def node_information():
 
 # easy to push a folder to a server and work there.
 # allows you to keep alias.
+
+# make it easy to define argument lists using only arguments that are 
+# actually used.
+
+# TODO: to get configs that have variable number of arguments, it has to be 
+# possible to specify what are the options that are defining the arguments that we care about.
+# only if these are set, will those arguments be available.
+
+# it is better to do isolate the part of the model that we care about.
+
+# net.
+# net.
+# enc_lstm.
+# dec_lstm. 
+
+# this is a good naming convention to make it work.
+
+# the fact that the configs are variable will mean that I will have to pass a 
+# dictionary to the create_experiment function.
+
+# do a ptb experiment.
+
+# some extension of the indexing capabilities of numpy is probably interesting.
+
+# add some more functional operations that I can use for lists, dictionaries or 
+# other structures.
+
+# TODO: it should be possible to call a function with a dictionary with 
+# a superset of the arguments of a function.
+# if that function has defaults, use those if those elements are not in the 
+# dictionary.
+# this is mostly for convenience, for functions that have a lot of 
+# arguments. it may be important to structure and unstructure a dictionary
+# to retrieve these types of arguments, because it gets really messy.
+# namespace for arguments.
+
+# this relies on the name agreement between elements of the same model.
+
+# call_fn(fn, kwargs)
+# where kwargs has a superset of the elements there.
+
+# the config can be structured.
+
+
+# a good idea to deal with structured configs.
+
+# TODO: it would be nice to work directly with many configs. 
+# this is hard to do right now.
+# especially in the interactive case.
+
+# I think that it would be interesting to have the 
