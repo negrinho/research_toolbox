@@ -3,6 +3,7 @@ import subprocess
 import paramiko
 import getpass
 import tb_utils as ut
+import tb_resources as rs
 
 def get_password():
     return getpass.getpass()
@@ -73,8 +74,8 @@ def get_lithium_resource_availability(servername, username, password=None,
     # script to define the functions to get the available resources.
     cmd_lines = ['import psutil', 'import subprocess', 'import numpy as np', '']
     fns = [ convert_between_byte_units,
-            cpus_total, memory_total, gpus_total, 
-            cpus_free, memory_free,  gpus_free, gpus_free_ids]
+            rs.cpus_total, rs.memory_total, rs.gpus_total, 
+            rs.cpus_free, rs.memory_free,  rs.gpus_free, rs.gpus_free_ids]
     
     for fn in fns:
         cmd_lines += [line.rstrip('\n') 
