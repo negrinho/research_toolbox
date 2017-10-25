@@ -73,7 +73,7 @@ def get_lithium_resource_availability(servername, username, password=None,
 
     # script to define the functions to get the available resources.
     cmd_lines = ['import psutil', 'import subprocess', 'import numpy as np', '']
-    fns = [ convert_between_byte_units,
+    fns = [ rs.convert_between_byte_units,
             rs.cpus_total, rs.memory_total, rs.gpus_total, 
             rs.cpus_free, rs.memory_free,  rs.gpus_free, rs.gpus_free_ids]
     
@@ -115,7 +115,7 @@ def get_lithium_resource_availability(servername, username, password=None,
                 for (i, fn) in enumerate([int, float, int] * 2 + [str]) ]
             vs[-1] = [int(x) for x in vs[-1].split(' ') if x != '']
 
-            d = create_dict(ks, vs)
+            d = ut.create_dict(ks, vs)
             node_to_resources[host] = d
         else:
             assert not abort_if_any_node_unavailable
@@ -237,7 +237,7 @@ class LithiumRunner:
                 if (( r['cpus_free'] >= x['num_cpus'] ) and 
                     ( r['gpus_free'] >= x['num_gpus'] ) and 
                     ( r['mem_mbs_free'] >= 
-                        convert_between_byte_units( x['mem_budget'], 
+                        rs.convert_between_byte_units( x['mem_budget'], 
                             src_units=x['mem_units'], dst_units='mb') ) ):  
 
                     # record information about where to run the job.
@@ -249,7 +249,7 @@ class LithiumRunner:
                     # for that node.
                     r['cpus_free'] -= x['num_cpus']
                     r['gpus_free'] -= x['num_gpus']
-                    r['mem_mbs_free'] -= convert_between_byte_units(
+                    r['mem_mbs_free'] -= rs.convert_between_byte_units(
                         x['mem_budget'], src_units=x['mem_units'], dst_units='mb')
                     r['free_gpu_ids'] = r['free_gpu_ids'][ x['num_gpus'] : ]
                     # assigned = True
@@ -341,7 +341,7 @@ def run_on_matrix(bash_command, servername, username, password=None,
         cmd_parts = [ 'sbatch', 
             '--cpus-per-task=%d' % num_cpus,
             '--gres=gpu:%d' % num_gpus,
-            '--mem=%d' % convert_between_byte_units(mem_budget, 
+            '--mem=%d' % rs.convert_between_byte_units(mem_budget, 
                 src_units=mem_units, dst_units='mb'),
             '--time=%d' % convert_between_time_units(time_budget, 
                 time_units, dst_units='m') ]
