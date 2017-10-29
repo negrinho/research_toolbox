@@ -1,5 +1,6 @@
 ### command line arguments
 import argparse
+import tb_io
 
 class CommandLineArgs:
     def __init__(self, args_prefix=''):
@@ -454,7 +455,7 @@ class ArgsDict:
         write_jsonfile(self.d, fpath)
     
     def _read(self, fpath):
-        return load_jsonfile(fpath)
+        return tb_io.read_jsonfile(fpath)
 
     def get_dict(self):
         return dict(self.d)
@@ -489,7 +490,7 @@ class SummaryDict:
         write_jsonfile(self.d, fpath)
     
     def _read(self, fpath):
-        return load_jsonfile(fpath)
+        return tb_io.read_jsonfile(fpath)
     
     def _check_consistency(self):
         assert (not self.abort_if_different_lengths) or (len(
@@ -497,4 +498,3 @@ class SummaryDict:
 
     def get_dict(self):
         return dict(self.d)
-
