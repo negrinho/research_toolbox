@@ -68,3 +68,106 @@ def preprocess_sentence(sent, tk_to_idx,
         proc_sent.extend([eos_idx] * eos_times)
 
     return proc_sent
+
+### TODO: this needs to be standardized. what is the typical information that 
+# these functions take. 
+# NOTE: perhaps focus on simple images, and
+### for images; some data augmentation
+import numpy as np
+import cv2
+
+def onehot_to_idx(y_onehot):
+    y_idx = np.where(y_onehot > 0.0)[1]
+
+    return y_idx
+
+def idx_to_onehot(y_idx, num_classes):
+    num_images = y_idx.shape[0]
+    y_one_hot = np.zeros( (num_images, num_classes), dtype='float32')
+    y_one_hot[ np.arange(num_images),  y_idx ] = 1.0
+
+    return y_one_hot
+
+# NOTE: many of 
+# NOTE: this can be improved by dealing with arbitrary dimensions, but it is
+# a simple example for now. kind of assumes 4 dimensions. it is OK, just 
+# augment the image with an extra dimension.
+# the application of this to four dimensional images is nice.
+def center_crop(X, out_height, out_width):
+    num_examples, height, width, num_channels = X.shape
+    assert out_height <= height and out_width <= width
+
+    start_i = (height - out_height) / 2
+    start_j = (width - out_width) / 2
+    X_out = X[:, start_i : start_i + out_height, start_j : start_j + out_width, :]  
+
+    return X_out
+
+# random crops for each of the images.
+def random_crop(X, out_height, out_width):
+    num_examples, height, width, num_channels = X.shape
+    # the ouput dimensions have to be smaller or equal that the input dimensions.
+    assert out_height <= height and out_width <= width
+
+    start_is = np.random.randint(height - out_height + 1, size=num_examples)
+    start_js = np.random.randint(width - out_width + 1, size=num_examples)
+    X_out = []
+    for ind in xrange(num_examples):
+        st_i = start_is[ind]
+        st_j = start_js[ind]
+
+        X_out_i = X[ind, st_i : st_i + out_height, st_j : st_j + out_width, :]
+        X_out.append(X_out_i)
+
+    X_out = np.array(X_out)
+    return X_out
+
+def random_flip_left_right(X, p_flip):
+    num_examples, height, width, num_channels = X.shape
+
+    X_out = X.copy()
+    flip_mask = np.random.random(num_examples) < p_flip
+    X_out[flip_mask] = X_out[flip_mask, :, ::-1, :]
+
+    return X_out
+
+def per_image_whiten(X):
+    """ Subtracts the mean of each image in X and renormalizes them to unit norm.
+
+    """
+    num_examples, height, width, num_channels = X.shape
+
+    X_flat = X.reshape((num_examples, -1))
+    X_mean = X_flat.mean(axis=1)
+    X_cent = X_flat - X_mean[:, None]
+    X_norm = np.sqrt( np.sum( X_cent * X_cent, axis=1) ) 
+    X_out = X_cent / X_norm[:, None]
+    X_out = X_out.reshape(X.shape) 
+
+    return X_out
+
+# Assumes the following ordering for X: (num_images, height, width, num_channels)
+def zero_pad_border(X, pad_size):
+    num_examples, height, width, num_channels = X.shape
+    X_padded = np.zeros((num_examples, height + 2 * pad_size, width + 2 * pad_size, 
+        num_channels), dtype='float32')
+    X_padded[:, pad_size:height + pad_size, pad_size:width + pad_size, :] = X
+    
+    return X_padded
+
+def random_scale_rotate(X, angle_min, angle_max, scale_min, scale_max):
+    num_examples, height, width, num_channels = X.shape
+    scales = np.random.uniform(scale_min, scale_max, size=num_examples)
+    angles = np.random.uniform(angle_min, angle_max, size=num_examples)
+
+    out_lst = []
+    rot_center = (height / 2, width / 2)
+    for i in xrange(num_examples):
+        A = cv2.getRotationMatrix2D(rot_center, angles[i], scales[i])
+        out = cv2.warpAffine(X[i], A, (height, width))
+        out_lst.append(out)
+    X_out = np.stack(out_lst)
+    # it seems that if there is a single channel, it disappears.
+    if num_channels == 1:
+        X_out = np.expand_dims(X_out, 3)
+    return X_out

@@ -2986,3 +2986,6 @@ def node_information():
 # especially in the interactive case.
 
 # I think that it would be interesting to have the 
+
+# TODO: it is important to have some functionality to deal with different 
+# paths and to generate them easily.
