@@ -4,7 +4,7 @@ import subprocess
 
 ### project manipulation
 def create_project_folder(folderpath, project_name):
-    fn = lambda xs: join_paths([folderpath, project_name] + xs)
+    fn = lambda xs: fs.join_paths([folderpath, project_name] + xs)
 
     fs.create_folder( fn( [] ) )
     # typical directories
