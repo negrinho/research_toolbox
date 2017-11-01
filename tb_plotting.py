@@ -1,6 +1,6 @@
 ### plotting 
 import os
-if "DISPLAY" not in os.environ or os.environ["DISPLAY"] == ':0.0':
+if "DISPLAY" not in os.environ:# or os.environ["DISPLAY"] == ':0.0':
     import matplotlib
     matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -50,21 +50,71 @@ class GridPlot:
     def plot(self, show=True, fpath=None):
         pass
 
+
+# what is the difference between axis and figures. plot, axis, figures
+
 ### TODO: 
 class BarPlot:
     def __init__(self):
         pass
 
-# class ScatterPlot:
-#     def __init__(self):
-#         pass
-
-#     self.cfg = {}
 
 ## TODO: perhaps make it easy to do references.
 class GridPlot:
     def __init__(self):
-        pass
+        self.xs = []
+
+
+# FFMpegFileWriter
+
+class PlotAnimation:
+    pass
+
+# class 
+
+
+# import numpy as np
+# import matplotlib.pyplot as plt
+# import matplotlib.animation as animation
+
+# fig, ax = plt.subplots()
+
+# x = np.arange(0, 2*np.pi, 0.01)
+# line, = ax.plot(x, np.sin(x))
+
+
+# def animate(i):
+#     line.set_ydata(np.sin(x + i/10.0))  # update the data
+#     return line,
+
+
+# # Init only required for blitting to give a clean slate.
+# def init():
+#     line.set_ydata(np.ma.array(x, mask=True))
+#     return line,
+
+# ani = animation.FuncAnimation(fig, animate, np.arange(1, 200), init_func=init,
+#                               interval=25, blit=True)
+# plt.show()
+
+
+
+class Animation:
+    def __init__(self):
+        self.xs = []
+    
+    def add_frame(self, x):
+        self.xs.append(x)
+    
+    def plot(self, fps, show=True, fpath=None):
+
+
+
+
+# NOTE: for example, you can keep the labels and do something with the 
+# the rest of the model. 
+# you can do a lot of thing. 
+
 
 # another type of graph that is common.
 # which is.
@@ -149,3 +199,41 @@ def generate_latex_table(mat, num_places, row_labels=None, column_labels=None,
     if show:
         print table
 
+
+# import numpy as np
+# import matplotlib.pyplot as plt
+# import matplotlib.animation as animation
+
+# fig = plt.figure()
+
+
+# def f(x, y):
+#     return np.sin(x) + np.cos(y)
+
+# x = np.linspace(0, 2 * np.pi, 120)
+# y = np.linspace(0, 2 * np.pi, 100).reshape(-1, 1)
+# # ims is a list of lists, each row is a list of artists to draw in the
+# # current frame; here we are just animating one artist, the image, in
+# # each frame
+# ims = []
+# for i in range(60):
+#     x += np.pi / 15.
+#     y += np.pi / 20.
+#     print f(x, y)
+#     im = plt.imshow(f(x, y), animated=True)
+#     ims.append([im])
+
+# ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True,
+#                                 repeat_delay=1000)
+
+# # ani.save('dynamic_images.mp4')
+
+# plt.show()
+
+# # TODO: also have some way of adding 
+
+# subplots with animation. that would be nice. multiple animations side by side.
+# rather than classes, it may be worth
+
+
+# TODO: also have a cheatsheet for matplotlib.
