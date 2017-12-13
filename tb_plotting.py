@@ -74,6 +74,7 @@ class GridPlot:
 
 # TODO: add histogram plo, and stuff like that.
 
+class Animation
 
 ### data to latex
 
