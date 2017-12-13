@@ -1,6 +1,7 @@
 ### directory management.
 import os
 import shutil
+import tb_utils as ut
 
 def path_prefix(path):
     return os.path.split(path)[0]
@@ -76,7 +77,7 @@ def copy_folder(src_folderpath, dst_folderpath,
     create_folder(dst_folderpath, create_parent_folders=create_parent_folders)
     
     # create all folders in the destination.
-    args = retrieve_values(locals(), 
+    args = ut.retrieve_values(locals(), 
         ['ignore_hidden_folders', 'ignore_hidden_files'])  
     fos = list_folders(src_folderpath, use_relative_paths=True, recursive=True, **args)
 
@@ -86,7 +87,7 @@ def copy_folder(src_folderpath, dst_folderpath,
     # print fos
 
     # copy all files to the destination. 
-    args = retrieve_values(locals(), 
+    args = ut.retrieve_values(locals(), 
         ['ignore_hidden_folders', 'ignore_hidden_files', 'ignore_file_exts'])  
     fis = list_files(src_folderpath, use_relative_paths=True, recursive=True, **args)
     # print fis
@@ -149,7 +150,7 @@ def list_files(folderpath,
         ignore_hidden_folders=True, ignore_hidden_files=True, ignore_file_exts=None, 
         recursive=False, use_relative_paths=False):
 
-    args = retrieve_values(locals(), ['recursive', 'ignore_hidden_folders', 
+    args = ut.retrieve_values(locals(), ['recursive', 'ignore_hidden_folders', 
         'ignore_hidden_files', 'ignore_file_exts', 'use_relative_paths'])
 
     return list_paths(folderpath, ignore_dirs=True, **args)
@@ -158,7 +159,7 @@ def list_folders(folderpath,
         ignore_hidden_files=True, ignore_hidden_folders=True, 
         recursive=False, use_relative_paths=False):
 
-    args = retrieve_values(locals(), ['recursive', 'ignore_hidden_folders', 
+    args = ut.retrieve_values(locals(), ['recursive', 'ignore_hidden_folders', 
         'ignore_hidden_files', 'use_relative_paths'])
 
     return list_paths(folderpath, ignore_files=True, **args)
