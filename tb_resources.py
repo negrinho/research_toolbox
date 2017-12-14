@@ -1,6 +1,7 @@
 ### running locally and on a server
 import psutil
 import subprocess
+from tb_logging import convert_between_byte_units
 
 def cpus_total():
     return psutil.cpu_count()
