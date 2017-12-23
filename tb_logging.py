@@ -21,6 +21,12 @@ def convert_between_time_units(x, src_units='s', dst_units='h'):
     d['w'] = 7.0 * d['d']
     return (x * d[src_units]) / d[dst_units]
 
+def convert_between_byte_units(x, src_units='b', dst_units='mb'):
+     units = ['b', 'kb', 'mb', 'gb', 'tb']
+     assert (src_units in units) and (dst_units in units)
+     return x / float(
+         2 ** (10 * (units.index(dst_units) - units.index(src_units))))
+
 # TODO: do not just return a string representation, return the numbers.
 def now(omit_date=False, omit_time=False, time_before_date=False):
     assert (not omit_time) or (not omit_date)
@@ -57,6 +63,7 @@ def now_dict():
 ### logging
 import time
 import os
+import psutil
 
 ### TODO: add calendar. or clock. or both. check formatting for both.
 
@@ -84,14 +91,14 @@ class MemoryTracker:
         self.max_registered = 0.0
 
     def memory_total(self, units='mb'):
-        mem_now = memory_process(os.getpid())
+        mem_now = memory_process(os.getpid(), units)
         if self.max_registered < mem_now:
             self.max_registered = mem_now
 
         return convert_between_byte_units(mem_now, dst_units=units)
         
     def memory_since_last(self, units='mb'):
-        mem_now = self.memory_total()        
+        mem_now = self.memory_total('b')        
         
         mem_dif = mem_now - self.last_registered
         self.last_registered = mem_now
