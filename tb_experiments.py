@@ -1,6 +1,7 @@
 ### command line arguments
 import argparse
 import tb_io
+import tb_logging as tb_lg
 
 class CommandLineArgs:
     def __init__(self, args_prefix=''):
@@ -399,12 +400,7 @@ def copy_regroup_config_generator(d_gen, d_update):
 import psutil
 import multiprocessing
 import time
-
-def mbs_process(pid):
-    psutil_p = psutil.Process(pid)
-    mem_p = psutil_p.memory_info()[0]
-    
-    return mem_p
+import tb_logging as tb_lg
 
 def run_guarded_experiment(maxmemory_mbs, maxtime_secs, experiment_fn, **kwargs):
         start = time.time()
@@ -414,7 +410,7 @@ def run_guarded_experiment(maxmemory_mbs, maxtime_secs, experiment_fn, **kwargs)
         while p.is_alive():
             p.join(1.0)     
             try:
-                mbs_p = mbs_process(p.pid)
+                mbs_p = tb_lg.memory_process(p.pid)
                 if mbs_p > maxmemory_mbs:
                     print "Limit of %0.2f MB exceeded. Terminating." % maxmemory_mbs
                     p.terminate()

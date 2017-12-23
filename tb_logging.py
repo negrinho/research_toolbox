@@ -1,6 +1,14 @@
 ### date and time
 import datetime
 import sys
+import psutil
+import tb_resources as tb_re
+
+def memory_process(pid, units='mb'):
+    psutil_p = psutil.Process(pid)
+    mem_p = psutil_p.memory_info()[0]
+    
+    return tb_re.convert_between_byte_units(mem_p, dst_units=units)
 
 def convert_between_time_units(x, src_units='s', dst_units='h'):
     units = ['s', 'm', 'h', 'd', 'w']
@@ -76,7 +84,7 @@ class MemoryTracker:
         self.max_registered = 0.0
 
     def memory_total(self, units='mb'):
-        mem_now = mbs_process(os.getpid())
+        mem_now = memory_process(os.getpid())
         if self.max_registered < mem_now:
             self.max_registered = mem_now
 

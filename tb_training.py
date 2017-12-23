@@ -133,6 +133,30 @@ class PiecewiseSchedule:
     def get_rate(self):
         return self.schedules[self.idx].get_rate()
 
+class CosineRateSchedule:
+    def __init__(self, rate_min, rate_max, duration, decreasing):
+        assert rate_min < rate_max
+        assert duration > 0
+    
+        self.rate_min = rate_min
+        self.rate_max = rate_max
+        self.duration = duration
+        self.decreasing = decreasing
+        self.num_steps = 0
+
+    def update(self, v):
+        assert self.num_steps < self.duration
+        self.num_steps += 1
+
+    def get_rate(self):
+        r = self.rate_min + 0.5 * (self.rate_max - self.rate_min) * (
+            1 + np.cos( float(self.num_steps) / self.duration * np.pi ))
+
+        if not self.decreasing:
+            r = self.rate_max + self.rate_min - r
+        
+        return r
+
 class PatienceCounter:
     def __init__(self, patience, init_val=None, minimizing=True, improv_thres=0.0):
         assert patience > 0 
