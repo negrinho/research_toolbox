@@ -1,7 +1,7 @@
 ### directory management.
 import os
 import shutil
-import tb_utils as ut
+import research_toolbox.tb_utils as ut
 
 def path_prefix(path):
     return os.path.split(path)[0]

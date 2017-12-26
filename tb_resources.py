@@ -1,7 +1,7 @@
 ### running locally and on a server
 import psutil
 import subprocess
-from tb_logging import convert_between_byte_units
+from research_toolbox.tb_logging import convert_between_byte_units
 
 def cpus_total():
     return psutil.cpu_count()
@@ -9,12 +9,6 @@ def cpus_total():
 def cpus_free():
     frac_free = (1.0 - 0.01 * psutil.cpu_percent())
     return int( np.round( frac_free * psutil.cpu_count() ) )
-
-def convert_between_byte_units(x, src_units='b', dst_units='mb'):
-     units = ['b', 'kb', 'mb', 'gb', 'tb']
-     assert (src_units in units) and (dst_units in units)
-     return x / float(
-         2 ** (10 * (units.index(dst_units) - units.index(src_units))))
 
 def memory_total(units='mb'):
     return convert_between_byte_units(psutil.virtual_memory().total, dst_units=units)

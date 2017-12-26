@@ -1,5 +1,5 @@
-import tb_filesystem as fs
-import tb_io as io
+import research_toolbox.tb_filesystem as fs
+import research_toolbox.tb_io as io
 import subprocess
 
 ### project manipulation

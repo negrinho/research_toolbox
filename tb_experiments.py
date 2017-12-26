@@ -1,7 +1,7 @@
 ### command line arguments
 import argparse
 import tb_io
-import tb_logging as tb_lg
+import research_toolbox.tb_logging as tb_lg
 
 class CommandLineArgs:
     def __init__(self, args_prefix=''):

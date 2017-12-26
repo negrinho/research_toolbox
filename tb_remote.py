@@ -2,8 +2,8 @@
 import subprocess
 import paramiko
 import getpass
-import tb_utils as ut
-import tb_resources as rs
+import research_toolbox.tb_utils as ut
+import research_toolbox.tb_resources as rs
 
 def get_password():
     return getpass.getpass()
