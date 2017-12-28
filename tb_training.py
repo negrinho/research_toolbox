@@ -127,8 +127,8 @@ class PiecewiseSchedule:
             if n < 0:
                 break
             self.idx += 1
-        
-        self.schedules[self.idx]
+            
+        self.schedules[self.idx].update(v)
 
     def get_rate(self):
         return self.schedules[self.idx].get_rate()
@@ -288,3 +288,11 @@ class InMemoryDataset:
             X_batch_out, y_batch_out = X_batch, y_batch
 
         return (X_batch_out, y_batch_out)
+
+def get_eval_fn(start_fn, train_fn, is_over_fn, end_fn):
+    def eval_fn(d)
+        self.start_fn(d)
+        while not self.is_over_fn(d):
+            self.train_fn(d)
+        self.end_fn(d)
+    return eval_fn
