@@ -147,11 +147,9 @@ class CosineRateSchedule:
         self.num_steps += 1
 
     def get_rate(self):
-        r = self.rate_end + 0.5 * (self.rate_start - self.rate_end) * (
+        return self.rate_end + 0.5 * (self.rate_start - self.rate_end) * (
             1 + np.cos( float(self.num_steps) / self.duration * np.pi ))
         
-        return r
-
 class PatienceCounter:
     def __init__(self, patience, init_val=None, minimizing=True, improv_thres=0.0):
         assert patience > 0 
@@ -234,16 +232,6 @@ def get_best(eval_fns, minimize):
 
 ### for storing the data
 class InMemoryDataset:
-    """Wrapper around a dataset for iteration that allows cycling over the 
-    dataset. 
-
-    This functionality is especially useful for training. One can specify if 
-    the data is to be shuffled at the end of each epoch. It is also possible
-    to specify a transformation function to applied to the batch before
-    being returned by next_batch.
-
-    """
-    
     def __init__(self, X, y, shuffle_at_epoch_begin, batch_transform_fn=None):
         if X.shape[0] != y.shape[0]:
             assert ValueError("X and y the same number of examples.")
@@ -258,14 +246,6 @@ class InMemoryDataset:
         return self.X.shape[0]
 
     def next_batch(self, batch_size):
-        """Returns the next batch in the dataset. 
-
-        If there are fewer that batch_size examples until the end
-        of the epoch, next_batch returns only as many examples as there are 
-        remaining in the epoch.
-
-        """
-
         n = self.X.shape[0]
         i = self.iter_i
 
@@ -284,15 +264,17 @@ class InMemoryDataset:
         # transform if a transform function was defined.
         if self.batch_transform_fn != None:
             X_batch_out, y_batch_out = self.batch_transform_fn(X_batch, y_batch)
-        else:
-            X_batch_out, y_batch_out = X_batch, y_batch
 
         return (X_batch_out, y_batch_out)
 
 def get_eval_fn(start_fn, train_fn, is_over_fn, end_fn):
-    def eval_fn(d)
-        self.start_fn(d)
-        while not self.is_over_fn(d):
-            self.train_fn(d)
-        self.end_fn(d)
+    def eval_fn(d):
+        start_fn(d)
+        while not is_over_fn(d):
+            train_fn(d)
+        end_fn(d)
     return eval_fn
+
+# TODO: possibility of adding a TB interact to run things from the command
+# line or easily from python.
+# TODO: stuff to work easily with models.
