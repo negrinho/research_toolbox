@@ -1,21 +1,21 @@
 
-# NOTE: some tentative functionality to augment images.
+# tentative functionality to augment images.
 import numpy as np
 import cv2
 
 def center_crop(X, out_height, out_width):
-    num_examples, in_height, in_width, in_depth = X.shape
+    _, in_height, in_width, _ = X.shape
     assert out_height <= in_height and out_width <= in_width
 
     start_i = (in_height - out_height) / 2
     start_j = (in_width - out_width) / 2
-    out_X = X[:, start_i : start_i + out_height, start_j : start_j + out_width, :]  
+    out_X = X[:, start_i : start_i + out_height, start_j : start_j + out_width, :]
 
     return out_X
 
 # random crops for each of the images.
 def random_crop(X, out_height, out_width):
-    num_examples, in_height, in_width, in_depth = X.shape
+    num_examples, in_height, in_width, _ = X.shape
     # the ouput dimensions have to be smaller or equal that the input dimensions.
     assert out_height <= in_height and out_width <= in_width
 
@@ -33,7 +33,7 @@ def random_crop(X, out_height, out_width):
     return out_X
 
 def random_flip_left_right(X, p_flip):
-    num_examples, height, width, depth = X.shape
+    num_examples, _, _, _ = X.shape
 
     out_X = X.copy()
     flip_mask = np.random.random(num_examples) < p_flip
@@ -42,24 +42,24 @@ def random_flip_left_right(X, p_flip):
     return out_X
 
 def per_image_whiten(X):
-    num_examples, height, width, depth = X.shape
+    num_examples, _, _, _ = X.shape
 
     X_flat = X.reshape((num_examples, -1))
     X_mean = X_flat.mean(axis=1)
     X_cent = X_flat - X_mean[:, None]
-    X_norm = np.sqrt( np.sum( X_cent * X_cent, axis=1) ) 
+    X_norm = np.sqrt(np.sum(X_cent * X_cent, axis=1))
     X_out = X_cent / X_norm[:, None]
-    X_out = X_out.reshape(X.shape) 
+    X_out = X_out.reshape(X.shape)
 
     return X_out
 
 # Assumes the following ordering for X: (num_images, height, width, num_channels)
 def zero_pad_border(X, pad_size):
     n, height, width, num_channels = X.shape
-    X_padded = np.zeros((n, height + 2 * pad_size, width + 2 * pad_size, 
+    X_padded = np.zeros((n, height + 2 * pad_size, width + 2 * pad_size,
         num_channels), dtype='float32')
     X_padded[:, pad_size:height + pad_size, pad_size:width + pad_size, :] = X
-    
+
     return X_padded
 
 # TODO: check that this works in the case of images with larger number of channels.
