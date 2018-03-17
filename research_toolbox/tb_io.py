@@ -52,16 +52,13 @@ def write_picklefile(x, filepath):
     with open(filepath, 'wb') as f:
         pickle.dump(x, f)
 
-# NOTE: this function can use some existing functionality from python to
-# make my life easier. I don't want fields manually.
-# perhaps easier when supported in some cases.
+# NOTE: this function can use some existing functionality from python.
 def read_csvfile(filepath, sep=',', has_header=True):
     raise NotImplementedError
 
 # TODO: there is also probably some functionality for this.
 def write_csvfile(ds, filepath, sep=',',
         write_header=True, abort_if_different_keys=True, sort_keys=False):
-
     ks = tb_ut.key_union(ds)
     if sort_keys:
         ks.sort()

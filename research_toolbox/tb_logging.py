@@ -7,6 +7,7 @@ import platform
 import time
 import os
 import research_toolbox.tb_utils as tb_ut
+import research_toolbox.tb_resources as tb_rs
 
 def convert_between_time_units(x, src_units='s', dst_units='h'):
     units = ['s', 'm', 'h', 'd', 'w']
@@ -19,16 +20,10 @@ def convert_between_time_units(x, src_units='s', dst_units='h'):
     d['w'] = 7.0 * d['d']
     return (x * d[src_units]) / d[dst_units]
 
-def convert_between_byte_units(x, src_units='b', dst_units='mb'):
-    units = ['b', 'kb', 'mb', 'gb', 'tb']
-    assert (src_units in units) and (dst_units in units)
-    return x / float(
-        2 ** (10 * (units.index(dst_units) - units.index(src_units))))
-
 def memory_process(pid, units='mb'):
     psutil_p = psutil.Process(pid)
     mem_p = psutil_p.memory_info()[0]
-    return convert_between_byte_units(mem_p, dst_units=units)
+    return tb_rs.convert_between_byte_units(mem_p, dst_units=units)
 
 # TODO: do not just return a string representation, return the numbers.
 def now(omit_date=False, omit_time=False, time_before_date=False):
@@ -90,7 +85,7 @@ class MemoryTracker:
         if self.max_registered < mem_now:
             self.max_registered = mem_now
 
-        return convert_between_byte_units(mem_now, dst_units=units)
+        return tb_rs.convert_between_byte_units(mem_now, dst_units=units)
 
     def memory_since_last(self, units='mb'):
         mem_now = self.memory_total('b')
@@ -98,10 +93,10 @@ class MemoryTracker:
         mem_dif = mem_now - self.last_registered
         self.last_registered = mem_now
 
-        return convert_between_byte_units(mem_dif, dst_units=units)
+        return tb_rs.convert_between_byte_units(mem_dif, dst_units=units)
 
     def memory_max(self, units='mb'):
-        return convert_between_byte_units(self.max_registered, dst_units=units)
+        return tb_rs.convert_between_byte_units(self.max_registered, dst_units=units)
 
 def print_time(timer, prefix_str='', units='s'):
     print('%s%0.2f %s since start.' % (prefix_str,

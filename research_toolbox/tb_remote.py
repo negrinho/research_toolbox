@@ -65,7 +65,7 @@ def get_lithium_resource_availability(servername, username, password=None,
 
     # script to define the functions to get the available resources.
     cmd_lines = ['import psutil', 'import subprocess', 'import numpy as np', '']
-    fns = [tb_lg.convert_between_byte_units,
+    fns = [tb_rs.convert_between_byte_units,
             tb_rs.cpus_total, tb_rs.memory_total, tb_rs.gpus_total,
             tb_rs.cpus_free, tb_rs.memory_free,  tb_rs.gpus_free, tb_rs.gpus_free_ids]
 
@@ -93,14 +93,14 @@ def get_lithium_resource_availability(servername, username, password=None,
         cmd = 'ssh -T %s python avail_resources.py' % host
         stdout_lines, stderr_lines = run_on_server(
             cmd, servername, username, password)
-        print stdout_lines, stderr_lines
+        # print stdout_lines, stderr_lines
 
         # if it did not fail.
         if len(stdout_lines) == 1:
             # extract the actual values from the command line.
             str_vs = stdout_lines[0].strip().split(';')
             assert len(str_vs) == 7
-            print str_vs
+            # print str_vs
             vs = [fn(str_vs[i])
                 for (i, fn) in enumerate([int, float, int] * 2 + [str])]
             vs[-1] = [int(x) for x in vs[-1].split(' ') if x != '']
@@ -217,7 +217,7 @@ class LithiumRunner:
                 if ((r['cpus_free'] >= x['num_cpus']) and
                     (r['gpus_free'] >= x['num_gpus']) and
                     (r['mem_mbs_free'] >=
-                        tb_lg.convert_between_byte_units(x['mem_budget'],
+                        tb_rs.convert_between_byte_units(x['mem_budget'],
                             src_units=x['mem_units'], dst_units='mb'))):
 
                     # record information about where to run the job.
@@ -229,7 +229,7 @@ class LithiumRunner:
                     # for that node.
                     r['cpus_free'] -= x['num_cpus']
                     r['gpus_free'] -= x['num_gpus']
-                    r['mem_mbs_free'] -= tb_lg.convert_between_byte_units(
+                    r['mem_mbs_free'] -= tb_rs.convert_between_byte_units(
                         x['mem_budget'], src_units=x['mem_units'], dst_units='mb')
                     r['free_gpu_ids'] = r['free_gpu_ids'][x['num_gpus'] :]
                     # assigned = True
@@ -285,10 +285,10 @@ def run_on_matrix(bash_command, servername, username, password=None,
 
     # either do the call using sbatch, or run directly on the head node.
     if not run_on_head_node:
-        cmd_parts = ['sbatch',
+        cmd_parts = ['srun' if wait_for_output else 'sbatch',
             '--cpus-per-task=%d' % num_cpus,
             '--gres=gpu:%d' % num_gpus,
-            '--mem=%d' % tb_lg.convert_between_byte_units(mem_budget,
+            '--mem=%d' % tb_rs.convert_between_byte_units(mem_budget,
                 src_units=mem_units, dst_units='mb'),
             '--time=%d' % tb_lg.convert_between_time_units(time_budget,
                 time_units, dst_units='m')]
@@ -298,7 +298,7 @@ def run_on_matrix(bash_command, servername, username, password=None,
 
         run_script_cmd = ' '.join(cmd_parts)
     else:
-        run_script_cmd = script_name
+        run_script_cmd = './' + script_name
 
     # actual command to run remotely
     remote_cmd = " && ".join([

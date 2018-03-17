@@ -1,5 +1,3 @@
-*NOTE: Readme is incomplete.*
-
 This repo contains a number of Python tools that I developed for doing experimental research in machine learning.
 It includes a broad set of functionality:
 * file system manipulation, e.g., creating and deleting a file or a folder, checking if a given file or folder exists, and listing files or folders in a directory.
@@ -224,6 +222,7 @@ Folder description
 * tb_remote.py: interaction with remote servers, such as syncing folders to and from the local machine, and submitting jobs to the server.
 * tb_resource.py: getting information about available resources in a machine, such as the number of CPUs or GPUS.
 * tb_training.py: learning rate schedules and additional logic that is often employed in training machine learning models such as saving and loading the best model found during training.
+<!---
 
 Implementation requests
 * tb_augmentation.py
@@ -404,8 +403,12 @@ of commands to run.
 * Dataset manager that allows to download the data in disk.
 * Write a mini-scheduler for non-managed node servers.
 * List files in a remote folder.
+* Easy to apply regular expressions and substitutions.
+* Send a downloaded version of the experiments upon completion.
+* Design some simple instructions/procedure to get things set up in a server.
+* Design some simple procedure to get a Docker container running with the experiments.
+*
 
-<!---
 # it should be easy to take a folder and run it on the cluster with some
 # configuration, then it should be easy to get the results back, maybe waiting
 # or not for it to finish.
