@@ -1,3 +1,5 @@
+## Motivation for a research toolbox
+
 This repo contains a number of Python tools that I developed for doing experimental research in machine learning.
 It includes a broad set of functionality:
 * file system manipulation, e.g., creating and deleting a file or a folder, checking if a given file or folder exists, and listing files or folders in a directory.
@@ -18,7 +20,24 @@ I recommend extending this toolbox or develop your own to suit your needs.
 This library is work in progress.
 The ultimate goal is to go from research idea to results as fast as possible.
 
-Here are a few example implementations:
+## File description
+* tb_augmentation.py: simple data augmentation.
+* tb_data.py: data loaders and data related functionality.
+* tb_debugging.py: error checking and functionality .
+* tb_experiments.py: writing experiment folders with configurations for running different experiments (see tutorial.py),
+* tb_filesystem.py: creating, copying, and testing for existence of files and folders.
+* tb_interact.py: interactive commands for running jobs on the server or locally.
+* tb_io.py: reading and writing simple file types.
+* tb_logging.py: common logging funtionality.
+* tb_plotting.py: wrappers around plotting libraries such as matplotlib to make simple plot generation easier.
+* tb_preprocessing.py: simple preprocessing functionality for going from raw data to data that is more ameanable for the application of machine learning.
+* tb_project.py: creation of the typical project structure for a machine learning project.
+* tb_random.py: simple random functionality for shuffling, sorting, and sampling.
+* tb_remote.py: interaction with remote servers, such as syncing folders to and from the local machine, and submitting jobs to the server.
+* tb_resource.py: getting information about available resources in a machine, such as the number of CPUs or GPUS.
+* tb_training.py: learning rate schedules and additional logic that is often employed in training machine learning models such as saving and loading the best model found during training.
+
+## Example code
 ```python
 ### retrieving certain keys from a dictionary (example from tb_utils.py)
 def retrieve_values(d, ks, tuple_fmt=False):
@@ -208,22 +227,6 @@ def delete_folder(folderpath, abort_if_nonempty=True, abort_if_notexists=True):
         assert not abort_if_notexists
 ```
 
-Folder description
-* tb_augmentation.py: simple data augmentation.
-* tb_data.py: data loaders and data related functionality.
-* tb_debugging.py: error checking and functionality .
-* tb_experiments.py: writing experiment folders with configurations for running different experiments (see tutorial.py),
-* tb_filesystem.py: creating, copying, and testing for existence of files and folders.
-* tb_interact.py: interactive commands for running jobs on the server or locally.
-* tb_io.py: reading and writing simple file types.
-* tb_logging.py: common logging funtionality.
-* tb_plotting.py: wrappers around plotting libraries such as matplotlib to make simple plot generation easier.
-* tb_preprocessing.py: simple preprocessing functionality for going from raw data to data that is more ameanable for the application of machine learning.
-* tb_project.py: creation of the typical project structure for a machine learning project.
-* tb_random.py: simple random functionality for shuffling, sorting, and sampling.
-* tb_remote.py: interaction with remote servers, such as syncing folders to and from the local machine, and submitting jobs to the server.
-* tb_resource.py: getting information about available resources in a machine, such as the number of CPUs or GPUS.
-* tb_training.py: learning rate schedules and additional logic that is often employed in training machine learning models such as saving and loading the best model found during training.
 <!---
 
 Implementation requests
