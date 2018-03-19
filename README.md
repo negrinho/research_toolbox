@@ -6,16 +6,17 @@ It includes a broad set of functionality:
 * creating folders with experiment configurations that can then be easily ran locally or on the server.
 * logging functionality for keeping track of important information when running code, e.g., memory usage or time since start.
 
-While Python has a broad set of functionality, using directly this functionality has an unnecessary high cognitive load because different functionality is spread across different libraries with different API and different design principles.
+While Python has a broad set of functionality, using directly this functionality has an unnecessary high cognitive load because the functions necessary to implement the desired functionality are spread across multiple libraries and use different API and different design principles.
 Existing APIs are often unnecessarily flexible for the most common use-cases needed by a particular user.
-Developing our own set of tools reduces cognitive load by creating high-level APIs for commonly used functionality that easy to use.
-These wrapper APIs allows us to include more explicit, high-level, error-checking, that would be more difficult to accomplish just through the use of the existing APIs.
+Developing your own wrapper APIs reduces cognitive load by making common use-cases more explicit.
+These APIs are easy to use because they are high-level, coherent, and adjusted to the needs of that particular user.
+These wrapper APIs can include high-level error-checking for each use-case, which would require considerably higher cognitive load to implement from scratch using existing APIs.
 
-I am not claiming that this library solves all the problems that you may have.
-I am suggesting that creating and maintaining your own research toolbox is convenient and should lead to benefits in the long run.
-You should extend this one or develop your own to suit your needs.
+I am not claiming that this library solves all problems that you may have.
+I am suggesting that creating and maintaining your own research toolbox is convenient and should lead to being able to get things done faster and an overall more pleasant experience.
+I recommend extending this toolbox or develop your own to suit your needs.
 This library is work in progress.
-The ultimate goal is to make it really easy to go from idea to results in very easily.
+The ultimate goal is to go from research idea to results as fast as possible.
 
 Here are a few example implementations:
 ```python
@@ -213,6 +214,7 @@ Folder description
 * tb_debugging.py: error checking and functionality .
 * tb_experiments.py: writing experiment folders with configurations for running different experiments (see tutorial.py),
 * tb_filesystem.py: creating, copying, and testing for existence of files and folders.
+* tb_interact.py: interactive commands for running jobs on the server or locally.
 * tb_io.py: reading and writing simple file types.
 * tb_logging.py: common logging funtionality.
 * tb_plotting.py: wrappers around plotting libraries such as matplotlib to make simple plot generation easier.
@@ -407,7 +409,11 @@ of commands to run.
 * Send a downloaded version of the experiments upon completion.
 * Design some simple instructions/procedure to get things set up in a server.
 * Design some simple procedure to get a Docker container running with the experiments.
-*
+* Setting up ssh id without a server. (create a new key, )
+* Download files of a certain type from a webpage.
+* Add option to run command locally: run_on_local
+* Add abort if it exists to the file checks.
+* Add a
 
 # it should be easy to take a folder and run it on the cluster with some
 # configuration, then it should be easy to get the results back, maybe waiting
