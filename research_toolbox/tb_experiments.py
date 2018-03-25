@@ -463,7 +463,7 @@ class SummaryDict:
     def get_dict(self):
         return dict(self.d)
 
-##### TODO: all this is very preliminary.
+##### TODO: all this is very preliminary. (edit or remove in future commits.)
 ### NOTE: below is an example set of functionalities convenient to create
 # extensive experiments using whatever function we have at hand.
 # NOTE: these may require some adaptation to be practical in a new example.

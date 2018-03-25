@@ -163,7 +163,7 @@ class LithiumRunner:
         self.jobs = []
 
     def register(self, bash_command, num_cpus=1, num_gpus=0,
-        mem_budget=8.0, time_budget=60.0, mem_units='gb', time_units='m',
+        mem_budget=8.0, time_budget=60.0, mem_units='gigabytes', time_units='minutes',
         folderpath=None, wait_for_output=True,
         require_gpu_types=None, require_nodes=None, run_on_head_node=False):
 
@@ -218,7 +218,7 @@ class LithiumRunner:
                     (r['gpus_free'] >= x['num_gpus']) and
                     (r['mem_mbs_free'] >=
                         tb_rs.convert_between_byte_units(x['mem_budget'],
-                            src_units=x['mem_units'], dst_units='mb'))):
+                            src_units=x['mem_units'], dst_units='megabytes'))):
 
                     # record information about where to run the job.
                     run_cfgs.append({
@@ -230,7 +230,7 @@ class LithiumRunner:
                     r['cpus_free'] -= x['num_cpus']
                     r['gpus_free'] -= x['num_gpus']
                     r['mem_mbs_free'] -= tb_rs.convert_between_byte_units(
-                        x['mem_budget'], src_units=x['mem_units'], dst_units='mb')
+                        x['mem_budget'], src_units=x['mem_units'], dst_units='megabytes')
                     r['free_gpu_ids'] = r['free_gpu_ids'][x['num_gpus'] :]
                     # assigned = True
                     break
@@ -269,7 +269,7 @@ class LithiumRunner:
 # NOTE: there may exist problems due to race conditions; can be solved later.
 def run_on_matrix(bash_command, servername, username, password=None,
         num_cpus=1, num_gpus=0,
-        mem_budget=8.0, time_budget=60.0, mem_units='gb', time_units='m',
+        mem_budget=8.0, time_budget=60.0, mem_units='gigabytes', time_units='minutes',
         folderpath=None, wait_for_output=True,
         require_gpu_type=None, run_on_head_node=False, jobname=None):
 
@@ -289,9 +289,9 @@ def run_on_matrix(bash_command, servername, username, password=None,
             '--cpus-per-task=%d' % num_cpus,
             '--gres=gpu:%d' % num_gpus,
             '--mem=%d' % tb_rs.convert_between_byte_units(mem_budget,
-                src_units=mem_units, dst_units='mb'),
+                src_units=mem_units, dst_units='megabytes'),
             '--time=%d' % tb_lg.convert_between_time_units(time_budget,
-                time_units, dst_units='m')]
+                time_units, dst_units='minutes')]
         if jobname is not None:
             cmd_parts += ['--job-name=%s' % jobname]
         cmd_parts += [script_name]
@@ -342,7 +342,6 @@ def sync_local_folder_from_local(src_folderpath, dst_folderpath,
         only_transfer_newer_files=True):
 
     cmd = ['rsync', '--verbose', '--archive']
-
     # whether to only transfer newer files or not.
     if only_transfer_newer_files:
         cmd += ['--update']
@@ -366,7 +365,6 @@ def sync_remote_folder_from_local(src_folderpath, dst_folderpath,
         only_transfer_newer_files=True):
 
     cmd = ['rsync', '--verbose', '--archive']
-
     # whether to only transfer newer files or not.
     if only_transfer_newer_files:
         cmd += ['--update']
@@ -390,7 +388,6 @@ def sync_local_folder_from_remote(src_folderpath, dst_folderpath,
         only_transfer_newer_files=True):
 
     cmd = ['rsync', '--verbose', '--archive']
-
     # whether to only transfer newer files or not.
     if only_transfer_newer_files:
         cmd += ['--update']

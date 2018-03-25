@@ -10,16 +10,16 @@ def cpus_free():
     frac_free = (1.0 - 0.01 * psutil.cpu_percent())
     return int(np.round(frac_free * psutil.cpu_count()))
 
-def convert_between_byte_units(x, src_units='b', dst_units='mb'):
-    units = ['b', 'kb', 'mb', 'gb', 'tb']
+def convert_between_byte_units(x, src_units='bytes', dst_units='megabytes'):
+    units = ['bytes', 'kilobytes', 'megabytes', 'gigabytes', 'terabytes']
     assert (src_units in units) and (dst_units in units)
     return x / float(
         2 ** (10 * (units.index(dst_units) - units.index(src_units))))
 
-def memory_total(units='mb'):
+def memory_total(units='megabytes'):
     return convert_between_byte_units(psutil.virtual_memory().total, dst_units=units)
 
-def memory_free(units='mb'):
+def memory_free(units='megabytes'):
     return convert_between_byte_units(psutil.virtual_memory().available, dst_units=units)
 
 def gpus_total():
@@ -42,7 +42,6 @@ def gpus_free_ids():
         ids = []
         gpu_ss = out.strip().split('\n')
         for i, s in enumerate(gpu_ss):
-
             p_s, m_s = s.split(', ')
             p = float(p_s.split()[0])
             m = float(m_s.split()[0])

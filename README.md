@@ -416,7 +416,9 @@ of commands to run.
 * Download files of a certain type from a webpage.
 * Add option to run command locally: run_on_local
 * Add abort if it exists to the file checks.
-* Add a
+* Add a function to draw the dependencies of a project, assuming that there is a root from which files are called.
+* Add functionality to see how much time has been waiting on the queue.
+* Functionality to know my jobs in the queue.
 
 # it should be easy to take a folder and run it on the cluster with some
 # configuration, then it should be easy to get the results back, maybe waiting
@@ -1279,5 +1281,7 @@ class BinarizationFeaturizer:
 # this is kind of tricky to get right. for now, let us just assume that
 
 # there is the question about what kind of models can work.
-# for example, I think that it is possible to talk abougt
+# for example, I think that it is possible to talk about.
+
+
 -->

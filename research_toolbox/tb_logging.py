@@ -20,7 +20,7 @@ def convert_between_time_units(x, src_units='s', dst_units='h'):
     d['w'] = 7.0 * d['d']
     return (x * d[src_units]) / d[dst_units]
 
-def memory_process(pid, units='mb'):
+def memory_process(pid, units='megabytes'):
     psutil_p = psutil.Process(pid)
     mem_p = psutil_p.memory_info()[0]
     return tb_rs.convert_between_byte_units(mem_p, dst_units=units)
@@ -80,22 +80,22 @@ class MemoryTracker:
         self.last_registered = 0.0
         self.max_registered = 0.0
 
-    def memory_total(self, units='mb'):
+    def memory_total(self, units='megabytes'):
         mem_now = memory_process(os.getpid(), units)
         if self.max_registered < mem_now:
             self.max_registered = mem_now
 
         return tb_rs.convert_between_byte_units(mem_now, dst_units=units)
 
-    def memory_since_last(self, units='mb'):
-        mem_now = self.memory_total('b')
+    def memory_since_last(self, units='megabytes'):
+        mem_now = self.memory_total('bytes')
 
         mem_dif = mem_now - self.last_registered
         self.last_registered = mem_now
 
         return tb_rs.convert_between_byte_units(mem_dif, dst_units=units)
 
-    def memory_max(self, units='mb'):
+    def memory_max(self, units='megabytes'):
         return tb_rs.convert_between_byte_units(self.max_registered, dst_units=units)
 
 def print_time(timer, prefix_str='', units='s'):
@@ -104,18 +104,18 @@ def print_time(timer, prefix_str='', units='s'):
     print("%s%0.2f %s seconds since last call." % (prefix_str,
         timer.time_since_last(units=units), units))
 
-def print_memory(memer, prefix_str='', units='mb'):
+def print_memory(memer, prefix_str='', units='megabytes'):
     print('%s%0.2f %s total.' % (prefix_str,
         memer.memory_total(units=units), units.upper()))
     print("%s%0.2f %s since last call." % (prefix_str,
         memer.memory_since_last(units=units), units.upper()))
 
-def print_memorytime(memer, timer, prefix_str='', mem_units='mb', time_units='s'):
+def print_memorytime(memer, timer, prefix_str='', mem_units='megabytes', time_units='s'):
     print_memory(memer, prefix_str, units=mem_units)
     print_time(timer, prefix_str, units=time_units)
 
 def print_oneliner_memorytime(memer, timer, prefix_str='',
-        mem_units='mb', time_units='s'):
+        mem_units='megabytes', time_units='s'):
 
     print('%s (%0.2f %s last; %0.2f %s total; %0.2f %s last; %0.2f %s total)'
                  % (prefix_str,
