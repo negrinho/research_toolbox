@@ -9,15 +9,18 @@ import os
 import research_toolbox.tb_utils as tb_ut
 import research_toolbox.tb_resources as tb_rs
 
-def convert_between_time_units(x, src_units='s', dst_units='h'):
-    units = ['s', 'm', 'h', 'd', 'w']
+def convert_between_time_units(x, src_units='seconds', dst_units='hours'):
+    units = ['seconds', 'minutes', 'hours', 'days', 'weeks']
     assert src_units in units and dst_units in units
     d = {}
-    d['s'] = 1.0
-    d['m'] = 60.0 * d['s']
-    d['h'] = 60.0 * d['m']
-    d['d'] = 24.0 * d['h']
-    d['w'] = 7.0 * d['d']
+    d['seconds'] = 1.0
+    d['minutes'] = 60.0 * d['seconds']
+    d['hours'] = 60.0 * d['minutes']
+    d['days'] = 24.0 * d['hours']
+    d['weeks'] = 7.0 * d['days']
+    d['miliseconds'] = d['seconds'] * 1e-3
+    d['microseconds'] = d['seconds'] * 1e-6
+    d['nanoseconds'] = d['seconds'] * 1e-9
     return (x * d[src_units]) / d[dst_units]
 
 def memory_process(pid, units='megabytes'):
@@ -62,18 +65,53 @@ class TimeTracker:
         self.init_time = time.time()
         self.last_registered = self.init_time
 
-    def time_since_start(self, units='s'):
+    def time_since_start(self, units='seconds'):
         now = time.time()
         elapsed = now - self.init_time
 
         return convert_between_time_units(elapsed, dst_units=units)
 
-    def time_since_last(self, units='s'):
+    def time_since_last(self, units='seconds'):
         now = time.time()
         elapsed = now - self.last_registered
         self.last_registered = now
 
         return convert_between_time_units(elapsed, dst_units=units)
+
+class TimerManager:
+    def __init__(self):
+        self.init_time = time.time()
+        self.last_registered = self.init_time
+        self.name_to_timer = {}
+
+    def create_timer(self, timer_name, abort_if_timer_exists=True):
+        assert not abort_if_timer_exists or timer_name not in self.name_to_timer
+        start_time = time.time()
+        self.name_to_timer[timer_name] = {'start' : start_time, 'tick' : start_time}
+
+    def create_timer_event(self, timer_name, event_name, abort_if_event_exists=True):
+        assert not timer_name == 'tick'
+        timer = self.name_to_timer[timer_name]
+        assert not abort_if_event_exists or event_name not in timer
+        timer[event_name] = time.time()
+
+    def tick_timer(self, timer_name):
+        self.name_to_timer[timer_name]['tick'] = time.time()
+
+    def get_time_since_event(self, timer_name, event_name, units='seconds'):
+        delta = time.time() - self.name_to_timer[timer_name][event_name]
+        return convert_between_time_units(delta, dst_units=units)
+
+    def get_time_between_events(self, timer_name,
+            earlier_event_name, later_event_name, units='seconds'):
+        timer = self.name_to_timer[timer_name]
+        delta = timer[earlier_event_name] - timer[later_event_name]
+        assert delta >= 0.0
+        return convert_between_time_units(delta, dst_units=units)
+
+    def get_time_since_last_tick(self, timer_name, units='seconds'):
+        delta = time.time() - self.name_to_timer[timer_name]['tick']
+        return convert_between_time_units(delta, dst_units=units)
 
 class MemoryTracker:
     def __init__(self):
@@ -98,7 +136,7 @@ class MemoryTracker:
     def memory_max(self, units='megabytes'):
         return tb_rs.convert_between_byte_units(self.max_registered, dst_units=units)
 
-def print_time(timer, prefix_str='', units='s'):
+def print_time(timer, prefix_str='', units='seconds'):
     print('%s%0.2f %s since start.' % (prefix_str,
         timer.time_since_start(units=units), units))
     print("%s%0.2f %s seconds since last call." % (prefix_str,
@@ -110,12 +148,12 @@ def print_memory(memer, prefix_str='', units='megabytes'):
     print("%s%0.2f %s since last call." % (prefix_str,
         memer.memory_since_last(units=units), units.upper()))
 
-def print_memorytime(memer, timer, prefix_str='', mem_units='megabytes', time_units='s'):
+def print_memorytime(memer, timer, prefix_str='', mem_units='megabytes', time_units='seconds'):
     print_memory(memer, prefix_str, units=mem_units)
     print_time(timer, prefix_str, units=time_units)
 
 def print_oneliner_memorytime(memer, timer, prefix_str='',
-        mem_units='megabytes', time_units='s'):
+        mem_units='megabytes', time_units='seconds'):
 
     print('%s (%0.2f %s last; %0.2f %s total; %0.2f %s last; %0.2f %s total)'
                  % (prefix_str,
