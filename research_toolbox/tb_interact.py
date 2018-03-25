@@ -11,7 +11,7 @@ import research_toolbox.tb_filesystem as tb_fs
 def write_server_run_script():
     assert servertype == 'bridges'
     # NOTE: to edit according to the configuration needed.
-    jobname = 'benchmark'
+    jobname = jobtype
     time_budget_in_hours = 48 # max 48 hours
     mem_budget_in_gb = 16
     partition_name = 'GPU-shared'
@@ -35,7 +35,7 @@ def write_server_run_script():
     script_body = [
         'module load tensorflow/1.5_gpu',
         'PYTHONPATH=%s:$PYTHONPATH' % remote_folderpath,
-        'python %s > log_%s.txt' % (main_relfilepath, jobname)]
+        'python -u %s > log_%s.txt' % (main_relfilepath, jobname)]
 
     script_filepath = tb_fs.join_paths([local_folderpath, "run.sh"])
     tb_io.write_textfile(script_filepath, script_header + [''] + script_body)
@@ -76,6 +76,7 @@ if __name__ == '__main__':
     parser.add_argument('job', type=str, choices=d['jobs'].keys())
     args = parser.parse_args()
     servertype = args.server
+    jobtype = args.job
 
     local_folderpath = d['local_folderpath']
     servername = d['servers'][args.server]['servername']

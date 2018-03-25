@@ -419,6 +419,9 @@ of commands to run.
 * Add a function to draw the dependencies of a project, assuming that there is a root from which files are called.
 * Add functionality to see how much time has been waiting on the queue.
 * Functionality to know my jobs in the queue.
+* Simplify the run on lithium node. it still has too many options for most cases.
+* Adding a function to extract from the toolbox is convenient. Check how to do this. This is convenient when we don't want to depend on the whole toolbox..
+*
 
 # it should be easy to take a folder and run it on the cluster with some
 # configuration, then it should be easy to get the results back, maybe waiting

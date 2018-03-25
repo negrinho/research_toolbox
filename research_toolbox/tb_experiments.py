@@ -382,24 +382,24 @@ def copy_regroup_config_generator(d_gen, d_update):
 # TODO: perhaps fix the API with regards to kwargs for consistency with
 # other examples.
 def run_guarded_experiment(experiment_fn, maxmemory_mbs, maxtime_secs, **kwargs):
-        start = time.time()
+    start = time.time()
 
-        p = multiprocessing.Process(target=experiment_fn, kwargs=kwargs)
-        p.start()
-        while p.is_alive():
-            p.join(1.0)
-            try:
-                mbs_p = tb_lg.memory_process(p.pid)
-                if mbs_p > maxmemory_mbs:
-                    print "Limit of %0.2f MB exceeded. Terminating." % maxmemory_mbs
-                    p.terminate()
+    p = multiprocessing.Process(target=experiment_fn, kwargs=kwargs)
+    p.start()
+    while p.is_alive():
+        p.join(1.0)
+        try:
+            mbs_p = tb_lg.memory_process(p.pid)
+            if mbs_p > maxmemory_mbs:
+                print "Limit of %0.2f MB exceeded. Terminating." % maxmemory_mbs
+                p.terminate()
 
-                secs_p = time.time() - start
-                if secs_p > maxtime_secs:
-                    print "Limit of %0.2f secs exceeded. Terminating." % maxtime_secs
-                    p.terminate()
-            except psutil.NoSuchProcess:
-                pass
+            secs_p = time.time() - start
+            if secs_p > maxtime_secs:
+                print "Limit of %0.2f secs exceeded. Terminating." % maxtime_secs
+                p.terminate()
+        except psutil.NoSuchProcess:
+            pass
 
 def run_parallel_experiment(experiment_fn, iter_args):
     ps = []
