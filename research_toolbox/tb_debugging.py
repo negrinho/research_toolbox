@@ -36,3 +36,6 @@ def assert_length_consistency(xs_lst):
     for i in xrange(len(xs_lst)):
         assert set([len(xs[i]) for xs in xs_lst]) == 1
 
+def is_at_most_one_true(xs):
+    assert all(type(x) == bool for x in xs)
+    return sum(xs) <= 1

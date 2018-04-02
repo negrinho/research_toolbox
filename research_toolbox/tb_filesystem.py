@@ -142,11 +142,10 @@ def list_files(folderpath,
     return list_paths(folderpath, ignore_dirs=True, **kwargs)
 
 def list_folders(folderpath,
-        ignore_hidden_files=True, ignore_hidden_folders=True,
-        recursive=False, use_relative_paths=False):
+        ignore_hidden_folders=True, recursive=False, use_relative_paths=False):
 
-    kwargs = tb_ut.retrieve_values(locals(), ['recursive', 'ignore_hidden_folders',
-        'ignore_hidden_files', 'use_relative_paths'])
+    kwargs = tb_ut.retrieve_values(locals(), [
+        'recursive', 'ignore_hidden_folders', 'use_relative_paths'])
     return list_paths(folderpath, ignore_files=True, **kwargs)
 
 def join_paths(paths):

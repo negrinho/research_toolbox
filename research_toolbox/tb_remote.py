@@ -4,9 +4,11 @@ import paramiko
 import getpass
 import inspect
 import uuid
+import urllib
 import research_toolbox.tb_utils as tb_ut
 import research_toolbox.tb_resources as tb_rs
 import research_toolbox.tb_logging as tb_lg
+import research_toolbox.tb_filesystem as tb_fs
 
 def get_password():
     return getpass.getpass()
@@ -405,3 +407,12 @@ def sync_local_folder_from_remote(src_folderpath, dst_folderpath,
     cmd += [src_folderpath, dst_folderpath]
     out = subprocess.check_output(cmd)
     return out
+
+def download_file(urlpath, folderpath, filename=None, abort_if_file_exists=True):
+    if filename is None:
+        filename = urlpath.split('/')[-1]
+    filepath = tb_fs.join_paths([folderpath, filename])
+    assert tb_fs.folder_exists(folderpath)
+    assert (not tb_fs.file_exists(filepath)) or abort_if_file_exists
+    f = urllib.URLopener()
+    f.retrieve(urlpath, filepath)

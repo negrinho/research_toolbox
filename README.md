@@ -421,7 +421,12 @@ of commands to run.
 * Functionality to know my jobs in the queue.
 * Simplify the run on lithium node. it still has too many options for most cases.
 * Adding a function to extract from the toolbox is convenient. Check how to do this. This is convenient when we don't want to depend on the whole toolbox..
-*
+* Add functionality to make it easy to work with the assyncronous computation.
+* Add scripts to periodically clean the folder. It would be nice to add one of these scripts in Python
+* Make sure that I can specify the axis of the plotter to be easier to use (like log vs linear).
+* Add some functionality to make sure that I can easily substitute all occurrences of strings in a code.
+* Add functionality to take the top elements of a vector
+* Double axis plot is going to be interesting.
 
 # it should be easy to take a folder and run it on the cluster with some
 # configuration, then it should be easy to get the results back, maybe waiting
