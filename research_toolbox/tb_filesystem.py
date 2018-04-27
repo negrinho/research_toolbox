@@ -70,9 +70,8 @@ def copy_folder(src_folderpath, dst_folderpath,
     create_folder(dst_folderpath, create_parent_folders=create_parent_folders)
 
     # create all folders in the destination.
-    kwargs = tb_ut.retrieve_values(locals(),
-        ['ignore_hidden_folders', 'ignore_hidden_files'])
-    fos = list_folders(src_folderpath, use_relative_paths=True, recursive=True, **kwargs)
+    fos = list_folders(src_folderpath, use_relative_paths=True, recursive=True,
+            ignore_hidden_folders=ignore_hidden_folders)
 
     for fo in fos:
         fo_path = join_paths([dst_folderpath, fo])
