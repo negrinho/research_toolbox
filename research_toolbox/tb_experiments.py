@@ -50,7 +50,7 @@ def generate_call_lines(main_filepath,
         argname_lst, argvalue_lst,
         output_filepath=None, profile_filepath=None):
 
-    sc_lines = ['python -u \\']
+    sc_lines = ['export PYTHONPATH=".:$PYTHONPATH" && python -u \\']
     # add the profiling instruction.
     if profile_filepath is not None:
         sc_lines += ['-m cProfile -o %s \\' % profile_filepath]

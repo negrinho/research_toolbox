@@ -1,5 +1,8 @@
 ### sequences, schedules, and counters (useful for training)
 import numpy as np
+import research_toolbox.tb_io as tb_io
+import research_toolbox.tb_filesystem as tb_fs
+import research_toolbox.tb_utils as tb_ut
 
 ### for storing the data
 class InMemoryDataset:
@@ -126,7 +129,7 @@ class StepwiseRateSchedule:
             durations)
 
     def update(self, v):
-        pass
+        self.schedule.update(v)
 
     def get_rate(self):
         return self.schedule.get_rate()
@@ -143,6 +146,7 @@ class PiecewiseSchedule:
         self.idx = 0
 
     def update(self, v):
+        self.num_steps += 1
         n = self.num_steps
         self.idx = 0
         for d in self.durations:
@@ -209,6 +213,40 @@ class PatienceCounter:
     def has_stopped(self):
         return self.counter == 0
 
+def get_random_step_schedule(min_rate_power, max_rate_power,
+        min_duration_power, max_duration_power, num_switch_points,
+        ensure_decreasing_rate=False, ensure_increasing_rate=False,
+        ensure_decreasing_duration=False, ensure_increasing_duration=False,
+        is_int_type=False):
+    assert min_duration_power >= 0
+
+    def sample(possible_values, num_samples, ensure_decreasing, ensure_increasing):
+        assert not (ensure_decreasing and ensure_increasing)
+
+        if ensure_decreasing:
+            possible_values = possible_values[::-1]
+
+        if ensure_decreasing or ensure_increasing:
+            values = []
+            idx = 0
+            for _ in xrange(num_switch_points):
+                idx = np.random.randint(idx, len(possible_values))
+                values.append(possible_values[idx])
+            values = np.array(values)
+        else:
+            values = np.random.choice(possible_values, num_switch_points)
+        return values
+
+    possible_rates = tb_ut.powers_of_two(min_rate_power, max_rate_power, is_int_type=is_int_type)
+    rates = sample(possible_rates, num_switch_points,
+        ensure_decreasing_rate, ensure_increasing_rate)
+
+    possible_durations = tb_ut.powers_of_two(min_duration_power, max_duration_power, is_int_type=True)
+    durations = sample(possible_durations, num_switch_points,
+        ensure_decreasing_duration, ensure_increasing_duration)
+
+    return StepwiseRateSchedule(rates, durations), rates, durations
+
 # NOTE: actually, state_dict needs a copy.
 # example
 # cond_fn = lambda old_x, x: old_x['acc'] < x['acc']
@@ -228,6 +266,73 @@ class Checkpoint:
 
     def get(self):
         return self.load_fn(self.state)
+
+# TODO: perhaps can be improved to guarantee that all elements were saved
+# correctly, e.g., right now it can timeout and get back a corrupted file.
+# maintain versions with dates (most recent is best).
+# TODO: perhaps later add more functions for removing only certain ones.
+# TODO: perhaps add an option to clean up all but some existing ones.
+# NOTE: affects the state directly of the model,
+# TODO: add more options to control for file existence and what not.
+# TODO: maybe add something to save many models. this can be useful.
+# TODO: make it easy to get multiple models from it, and return multiple
+# models to it.
+# TODO: it is possible to add something to remove the whole folder in the end.
+class Saver:
+    def __init__(self, saver_folderpath):
+        self.saver_folderpath = saver_folderpath
+        self.name_to_cfg = {}
+        self.name_to_save_fn = {}
+        self.name_to_load_fn = {}
+
+    def _get_filepath(self, name, use_json):
+        filename = name + (".json" if use_json else '.pkl')
+        filepath = tb_fs.join_paths([self.saver_folderpath, filename])
+        return filepath
+
+    def register(self, name, save_fn, load_fn, use_json=False):
+        assert name not in self.name_to_cfg
+        self.name_to_cfg[name] = {
+            'save_fn' : save_fn,
+            'load_fn' : load_fn,
+            'use_json' : use_json,
+        }
+
+    def save(self, name, x):
+        cfg = self.name_to_cfg[name]
+        out = cfg['save_fn'](x)
+        filepath = self._get_filepath(name, cfg['use_json'])
+        if cfg['use_json']:
+            tb_io.write_jsonfile(out, filepath)
+        else:
+            tb_io.write_picklefile(out, filepath)
+
+    def load(self, name, x):
+        cfg = self.name_to_cfg[name]
+        filepath = self._get_filepath(name, cfg['use_json'])
+        if tb_fs.file_exists(filepath):
+            if cfg['use_json']:
+                out = tb_io.read_jsonfile(filepath)
+            else:
+                out = tb_io.read_picklefile(filepath)
+            x = cfg['load_fn'](x, out)
+        return x
+
+    def clean(self, name):
+        cfg = self.name_to_cfg[name]
+        filepath = self._get_filepath(name, cfg['use_json'])
+        tb_fs.delete_file(filepath, abort_if_notexists=False)
+
+    def clean_all(self):
+        for name in self.name_to_cfg:
+            self.clean(name)
+
+    # def unregister(self, name, delete_existing_checkpoint=False):
+    #     self.name_to_save_fn.pop(name)
+    #     self.name_to_load_fn.pop(name)
+    #     filepath = self._get_filepath(name)
+    #     if delete_existing_checkpoint
+    #         tb_fs.delete_file(filepath, abort_if_notexists=False)
 
 def get_best(eval_fns, minimize):
     best_i = None

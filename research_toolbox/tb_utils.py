@@ -3,6 +3,13 @@ import inspect
 import pprint
 import pandas
 import itertools
+import numpy as np
+
+def powers_of_two(starting_power, ending_power, is_int_type=False):
+    assert ending_power >= starting_power
+    return np.logspace(starting_power, ending_power,
+        num=ending_power - starting_power + 1,
+        base=2, dtype='float64' if is_int_type is False else 'int64')
 
 ### auxiliary functions for avoiding boilerplate in in assignments
 def set_obj_vars(obj, d,
@@ -16,6 +23,7 @@ def set_obj_vars(obj, d,
     for k, v in d.iteritems():
         assert not hasattr(obj, k)
         setattr(obj, k, v)
+    return obj
 
 def retrieve_obj_vars(obj, var_names, tuple_fmt=False):
     return retrieve_values(vars(obj), var_names, tuple_fmt)
