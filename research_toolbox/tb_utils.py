@@ -53,9 +53,9 @@ def iter_product(lst_lst_vals, tuple_fmt=True):
         vs = map(list, vs)
     return vs
 
-def iter_ortho_all(lst_lst_vals, ref_idxs, ignore_repeats=True):
-    assert len(lst_lst_vals) == len(ref_idxs)
-    ref_r = [lst_lst_vals[pos][idx] for (pos, idx) in enumerate(ref_idxs)]
+def iter_ortho_all(lst_lst_vals, reference_idxs, ignore_repeats=True):
+    assert len(lst_lst_vals) == len(reference_idxs)
+    ref_r = [lst_lst_vals[pos][idx] for (pos, idx) in enumerate(reference_idxs)]
 
     # put reference first in this case, if ignoring repeats
     rs = [] if not ignore_repeats else [tuple(ref_r)]
@@ -64,7 +64,7 @@ def iter_ortho_all(lst_lst_vals, ref_idxs, ignore_repeats=True):
     for i in xrange(num_lsts):
         num_vals = len(lst_lst_vals[i])
         for j in xrange(num_vals):
-            if ignore_repeats and j == ref_idxs[i]:
+            if ignore_repeats and j == reference_idxs[i]:
                 continue
 
             r = list(ref_r)
@@ -72,19 +72,19 @@ def iter_ortho_all(lst_lst_vals, ref_idxs, ignore_repeats=True):
             rs.append(tuple(r))
     return rs
 
-def iter_ortho_single(lst_lst_vals, ref_idxs, idx_it, ref_first=True):
-    assert len(lst_lst_vals) == len(ref_idxs)
-    ref_r = [lst_lst_vals[pos][idx] for (pos, idx) in enumerate(ref_idxs)]
+def iter_ortho_single(lst_lst_vals, reference_idxs, iteration_idx, put_reference_first=True):
+    assert len(lst_lst_vals) == len(reference_idxs)
+    ref_r = [lst_lst_vals[pos][idx] for (pos, idx) in enumerate(reference_idxs)]
 
-    rs = [] if not ref_first else [tuple(ref_r)]
+    rs = [] if not put_reference_first else [tuple(ref_r)]
 
-    num_vals = len(lst_lst_vals[idx_it])
+    num_vals = len(lst_lst_vals[iteration_idx])
     for j in xrange(num_vals):
-        if ref_first and j == ref_idxs[idx_it]:
+        if put_reference_first and j == reference_idxs[iteration_idx]:
             continue
 
-        r = [lst_lst_vals[pos][idx] for (pos, idx) in enumerate(ref_idxs)]
-        r[i] = lst_lst_vals[idx_it][j]
+        r = [lst_lst_vals[pos][idx] for (pos, idx) in enumerate(reference_idxs)]
+        r[i] = lst_lst_vals[iteration_idx][j]
         rs.append(tuple(r))
     return rs
 
