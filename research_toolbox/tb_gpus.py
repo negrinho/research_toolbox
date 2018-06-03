@@ -1,6 +1,7 @@
 import subprocess
 import os
 import research_toolbox.tb_resources as tb_rs
+import research_toolbox.tb_environment as tb_en
 
 def get_gpu_information():
     gpus = []
@@ -43,7 +44,7 @@ def get_total_num_gpus():
 def set_visible_gpus(gpu_ids):
     n = get_total_num_gpus()
     assert all([i < n and i >= 0 for i in gpu_ids])
-    set_environment_variable('CUDA_VISIBLE_DEVICES', ",".join(map(str, gpu_ids)),
+    tb_en.set_environment_variable('CUDA_VISIBLE_DEVICES', ",".join(map(str, gpu_ids)),
         abort_if_notexists=False)
 
 def set_single_visible_available_gpu(

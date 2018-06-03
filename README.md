@@ -21,21 +21,36 @@ This library is work in progress.
 The ultimate goal is to go from research idea to results as fast as possible.
 
 ## File description
-* tb_augmentation.py: simple data augmentation.
-* tb_data.py: data loaders and data related functionality.
-* tb_debugging.py: error checking and functionality .
-* tb_experiments.py: writing experiment folders with configurations for running different experiments (see tutorial.py),
-* tb_filesystem.py: creating, copying, and testing for existence of files and folders.
-* tb_interact.py: interactive commands for running jobs on the server or locally.
-* tb_io.py: reading and writing simple file types.
-* tb_logging.py: common logging funtionality.
-* tb_plotting.py: wrappers around plotting libraries such as matplotlib to make simple plot generation easier.
-* tb_preprocessing.py: simple preprocessing functionality for going from raw data to data that is more ameanable for the application of machine learning.
-* tb_project.py: creation of the typical project structure for a machine learning project.
-* tb_random.py: simple random functionality for shuffling, sorting, and sampling.
-* tb_remote.py: interaction with remote servers, such as syncing folders to and from the local machine, and submitting jobs to the server.
-* tb_resource.py: getting information about available resources in a machine, such as the number of CPUs or GPUS.
-* tb_training.py: learning rate schedules and additional logic that is often employed in training machine learning models such as saving and loading the best model found during training.
+* [tb_augmentation.py](https://github.com/negrinho/research_toolbox/blob/master/research_toolbox/tb_augmentation.py):
+    simple data augmentation.
+* [tb_data.py](https://github.com/negrinho/research_toolbox/blob/master/research_toolbox/tb_data.py):
+    data loaders and data related functionality.
+* [tb_debugging.py](https://github.com/negrinho/research_toolbox/blob/master/research_toolbox/tb_debugging.py):
+    error checking and debugging functionality .
+* [tb_experiments.py](https://github.com/negrinho/research_toolbox/blob/master/research_toolbox/tb_experiments.py):
+    writing experiment folders with configurations for running different experiments.
+* [tb_filesystem.py](https://github.com/negrinho/research_toolbox/blob/master/research_toolbox/tb_filesystem.py):
+    creating, copying, and testing for existence of files and folders.
+* [tb_interact.py](https://github.com/negrinho/research_toolbox/blob/master/research_toolbox/tb_interact.py):
+    interactive commands for running jobs on the server or locally.
+* [tb_io.py](https://github.com/negrinho/research_toolbox/blob/master/research_toolbox/tb_io.py):
+    reading and writing simple file types.
+* [tb_logging.py](https://github.com/negrinho/research_toolbox/blob/master/research_toolbox/tb_logging.py):
+    common logging funtionality.
+* [tb_plotting.py](https://github.com/negrinho/research_toolbox/blob/master/research_toolbox/tb_plotting.py):
+    wrappers around plotting libraries such as matplotlib to make simple plot generation easier.
+* [tb_preprocessing.py](https://github.com/negrinho/research_toolbox/blob/master/research_toolbox/tb_preprocessing.py):
+    simple preprocessing functionality for going from raw data to data that is more ameanable for the application of machine learning.
+* [tb_project.py](https://github.com/negrinho/research_toolbox/blob/master/research_toolbox/tb_project.py):
+    creation of the typical project structure for a machine learning project.
+* [tb_random.py](https://github.com/negrinho/research_toolbox/blob/master/research_toolbox/tb_random.py):
+    simple random functionality for shuffling, sorting, and sampling.
+* [tb_remote.py](https://github.com/negrinho/research_toolbox/blob/master/research_toolbox/tb_remote.py):
+    interaction with remote servers, such as syncing folders to and from the local machine, and submitting jobs to the server.
+* [tb_resource.py](https://github.com/negrinho/research_toolbox/blob/master/research_toolbox/tb_resource.py):
+    getting information about available resources in a machine, such as the number of CPUs or GPUS.
+* [tb_training.py](https://github.com/negrinho/research_toolbox/blob/master/research_toolbox/tb_training.py):
+    learning rate schedules and additional logic that is often employed in training machine learning models such as saving and loading the best model found during training.
 
 ## Example code
 ```python
