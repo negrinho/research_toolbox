@@ -6,6 +6,58 @@ import research_toolbox.tb_resources as tb_rs
 import research_toolbox.tb_logging as tb_lg
 import research_toolbox.tb_io as tb_io
 import research_toolbox.tb_filesystem as tb_fs
+import research_toolbox.tb_experiments as tb_ex
+
+import importlib
+from pprint import pprint
+
+class CommandLineDynamicParser:
+    def __init__(self, max_num_args):
+        self.max_num_args = max_num_args
+        self.parser = tb_ex.CommandLineArgs()
+        for i in xrange(max_num_args):
+            self.parser.add('arg%d_name' % i, 'str', optional=True)
+            self.parser.add('arg%d_val' % i, 'str', optional=True)
+            self.parser.add('arg%d_type' % i, 'str',
+                valid_value_lst=['int', 'float', 'str',
+                    'int_list', 'float_list', 'str_list'], optional=True)
+
+    def parse(self):
+        d = self.parser.parse()
+        for i in xrange(self.max_num_args):
+            arg_ks = ['arg%d_name' % i, 'arg%d_val' % i, 'arg%d_type' % i]
+            assert all(k is None for k in arg_ks) or all(k is not None for k in arg_ks)
+            if all(d[k] is None for k in arg_ks):
+                for k in arg_ks:
+                    d.pop(k)
+
+        ks = set(map(lambda x: x.split('_')[0], d.keys()))
+        arg_type_to_fn = {
+            'int' : int,
+            'str' : str,
+            'float' : float,
+            'int_list' : lambda x: map(int, x.split()),
+            'str_list' : lambda x: map(str, x.split()),
+            'float_list' : lambda x: map(float, x.split()),
+        }
+
+        proc_d = {}
+        for k in ks:
+            arg_name = d[k + '_name']
+            arg_val = d[k + '_val']
+            arg_type = d[k + '_type']
+            proc_d[arg_name] = arg_type_to_fn[arg_type](arg_val)
+
+        return proc_d
+
+    def get_parser(self):
+        return self.parser.get_parser()
+
+def run_function(import_name, function_name, argname_to_argval, print_results=True):
+    module = importlib.import_module(import_name)
+    r = getattr(module, function_name)(**argname_to_argval)
+    if print_results:
+        pprint(r)
 
 # check https://www.psc.edu/bridges/user-guide/running-jobs for more information
 def write_server_run_script():

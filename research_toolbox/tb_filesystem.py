@@ -147,6 +147,45 @@ def list_folders(folderpath,
         'recursive', 'ignore_hidden_folders', 'use_relative_paths'])
     return list_paths(folderpath, ignore_files=True, **kwargs)
 
+def list_leaf_folders(root_folderpath, ignore_hidden_folders=True):
+
+    def iter_fn(folderpath, leaf_folderpath_lst):
+        child_folderpath_lst = list_folders(folderpath,
+            ignore_hidden_folders=ignore_hidden_folders)
+
+        if len(child_folderpath_lst) > 0:
+            for p in child_folderpath_lst:
+                iter_fn(p, leaf_folderpath_lst)
+        else:
+            leaf_folderpath_lst.append(folderpath)
+        return leaf_folderpath_lst
+
+    return iter_fn(root_folderpath, [])
+
+# NOTE: I think that this function is more general than list_leaf_folders.
+def list_folders_conditionally(root_folderpath, cond_fn, ignore_hidden_folders=True):
+    """Descends down the directory tree rooted at the specified folder path, tests a
+    condition at each node, and stops the descent down that particular path if
+    the condition evaluates to true. The nodes which evaluated to true are
+    returned in a list.
+
+    This function is useful, for example, to work with arbitrarily nested folders
+    that always end up having some regular folder structure close to the leaves.
+    """
+
+    def iter_fn(folderpath, lst):
+
+        if cond_fn(folderpath):
+            lst.append(folderpath)
+        else:
+            child_folderpath_lst = list_folders(folderpath,
+                ignore_hidden_folders=ignore_hidden_folders)
+            for p in child_folderpath_lst:
+                iter_fn(p, lst)
+        return lst
+
+    return iter_fn(root_folderpath, [])
+
 def join_paths(paths):
     return os.path.join(*paths)
 

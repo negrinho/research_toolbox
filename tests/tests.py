@@ -1,5 +1,4 @@
 import research_toolbox.tb_utils as tb_ut
-import research_toolbox.tb_remote as tb_re
 
 def test_zip_toggle():
     xs = [[1, 2, 3], [2, 3, 4]]
