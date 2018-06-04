@@ -82,5 +82,5 @@ class BinarizationFeaturizer:
 
 # NOTE that this is mainly for a row. what about for things with state.
 
-# TODO: do the compositional functionality for featurizers, e.g., how to generate
-# project
+# TODO: do the compositional functionality for featurizers, e.g., how to stack
+# featurizers into one big featurizer.
