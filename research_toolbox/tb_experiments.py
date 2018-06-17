@@ -5,6 +5,8 @@ import stat
 import time
 import psutil
 import os
+import json
+import uuid
 import research_toolbox.tb_filesystem as tb_fs
 import research_toolbox.tb_io as tb_io
 import research_toolbox.tb_logging as tb_lg
@@ -463,3 +465,77 @@ class SummaryDict:
     def get_dict(self):
         return dict(self.d)
 
+# perhaps also add a meta data json file per item stored.
+class MemoManager:
+    def __init__(self, folderpath, create_if_notexists=False):
+        self.folderpath = folderpath
+        self.key_to_filename = {}
+
+        tb_fs.create_folder(folderpath,
+            abort_if_exists=False,
+            create_parent_folders=create_if_notexists)
+
+        # initialize the memo based on the state of the folder.
+        for fpath in tb_fs.list_files(folderpath):
+            fname_with_ext = tb_fs.path_last_element(fpath)
+            if fname_with_ext.startswith('config-') and fname_with_ext.endswith('.json'):
+                fname = fname_with_ext[len('config-'):-len('.json')]
+                config = tb_io.read_jsonfile(fpath)
+                key = self._key_from_config(config)
+                self.key_to_filename[key] = fname
+
+    def _key_from_config(self, config):
+        return json.dumps(config, sort_keys=True)
+
+    def _get_unique_filename(self):
+        while True:
+            filename = uuid.uuid4()
+            if not tb_fs.file_exists(tb_fs.join_paths([self.folderpath, "config-%s.json" % filename])):
+                return filename
+
+    def _get_filepath(self, filetype, filename, fileext):
+        return tb_fs.join_paths([self.folderpath, "%s-%s.%s" % (filetype, filename, fileext)])
+
+    def is_available(self, config):
+        key = self._key_from_config(config)
+        return key in self.key_to_filename
+
+    def write(self, config, value, abort_if_exists=True):
+        key = self._key_from_config(config)
+        assert not abort_if_exists or key not in self.key_to_filename
+
+        filename = self._get_unique_filename()
+        config_filepath = self._get_filepath('config', filename, 'json')
+        tb_io.write_jsonfile(config, config_filepath)
+        value_filepath = self._get_filepath('value', filename, 'pkl')
+        tb_io.write_picklefile(value, value_filepath)
+        self.key_to_filename[key] = filename
+
+    def read(self, config):
+        key = self._key_from_config(config)
+        filename = self.key_to_filename[key]
+        value_filepath = self._get_filepath('value', filename, 'pkl')
+        return tb_io.read_picklefile(value_filepath)
+
+    def delete_conditionally(self, delete_cond_fn):
+        del_lst = []
+        for filename in self.key_to_filename.itervalues():
+            config_filepath = self._get_filepath('config', filename, 'json')
+            config = tb_io.read_jsonfile(config_filepath)
+            if delete_cond_fn(config):
+                value_filepath = self._get_filepath('value', filename, 'pkl')
+                tb_fs.delete_file(config_filepath)
+                tb_fs.delete_file(value_filepath)
+                del_lst.append(config)
+
+        # remove the configs from the dictionary.
+        for config in del_lst:
+            key = self._key_from_config(config)
+            self.key_to_filename.pop(key)
+
+    def get_configs(self):
+        cfgs = []
+        for filename in self.key_to_filename.itervalues():
+            d = tb_io.read_jsonfile(self._get_filepath('config', filename, 'json'))
+            cfgs.append(d)
+        return cfgs

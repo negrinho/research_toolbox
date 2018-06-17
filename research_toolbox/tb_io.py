@@ -40,9 +40,10 @@ def read_jsonfile(filepath):
         d = json.load(f)
         return d
 
-def write_jsonfile(d, filepath, sort_keys=False):
+def write_jsonfile(d, filepath, sort_keys=False, compactify=False):
     with open(filepath, 'w') as f:
-        json.dump(d, f, indent=4, sort_keys=sort_keys)
+        indent = None if compactify else 4
+        json.dump(d, f, indent=indent, sort_keys=sort_keys)
 
 def read_picklefile(filepath):
     with open(filepath, 'rb') as f:

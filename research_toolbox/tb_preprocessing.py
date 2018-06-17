@@ -69,12 +69,39 @@ def preprocess_sentence(sentence, token_to_index,
 
     return proc_sent
 
-def convert_onehot_to_idx(y_onehot):
+def convert_onehot_to_indices(y_onehot):
+    assert len(y_onehot.shape) == 2
     y_idx = np.where(y_onehot > 0.0)[1]
     return y_idx
 
-def convert_idx_to_onehot(y_idx, num_classes):
-    num_images = y_idx.shape[0]
-    y_one_hot = np.zeros((num_images, num_classes), dtype='float32')
-    y_one_hot[np.arange(num_images),  y_idx] = 1.0
+def convert_indices_to_onehot(y_idx, num_classes):
+    assert len(y_idx.shape) == 1
+    num_examples = y_idx.shape[0]
+    y_one_hot = np.zeros((num_examples, num_classes), dtype='float32')
+    y_one_hot[np.arange(num_examples),  y_idx] = 1.0
     return y_one_hot
+
+def mask_union(mask_lst):
+    out_mask = np.zeros_like(mask_lst[0], dtype='float32')
+    for m in mask_lst:
+        out_mask += m
+    out_mask = np.clip(out_mask, 0.0, 1.0)
+    return out_mask
+
+def mask_intersection(mask_lst):
+    out_mask = np.ones_like(mask_lst[0], dtype='float32')
+    for m in mask_lst:
+        assert m.shape == out_mask.shape
+        out_mask *= m
+    return out_mask
+
+def mask_invert(mask):
+    return 1.0 - mask
+
+def mask_from_lengths(length_lst, max_length):
+    n = len(length_lst)
+    out_mask = np.ones(n, max_length, dtype='float32')
+    for i, x in enumerate(length_lst):
+        out_mask[i, x:] = 0.0
+    return out_mask
+
