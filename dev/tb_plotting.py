@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 # perhaps add hlines if needed lines and stuff like that. this can be done.
 # NOTE: perhaps can have some structured representation for the model.
@@ -73,3 +74,34 @@ def generate_latex_table(mat, num_places, row_labels=None, column_labels=None,
             f.write(table)
     if show:
         print table
+
+
+# subplot example. needs to be refactored to something more general.
+def show_grid(matrix_lst, subplot_num_rows, subplot_num_cols, title_lst=None,
+        show_colorbar=True, grid_spacing=8):
+    num_plots = len(matrix_lst)
+    assert subplot_num_rows * subplot_num_cols >= num_plots
+
+    fig = plt.figure()
+    for idx, mat in enumerate(matrix_lst):
+        num_rows, num_cols = mat.shape
+        ax = fig.add_subplot(subplot_num_rows, subplot_num_cols, idx + 1)
+        plot = ax.pcolor(mat.astype(np.float64), vmin=0.0, vmax=1.0)
+        ax.set_aspect('equal')
+        ax.set_xticks([grid_spacing * i for i in range(num_cols // grid_spacing)])
+        ax.set_yticks([grid_spacing * i for i in range(num_rows // grid_spacing)])
+        # ax.set_xticks(range(num_cols), minor=True)
+        # ax.set_yticks(range(num_rows), minor=True)
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        # ax.margins(x=0, y=0)
+        # ax.set_xlim(left=0.0, right=num_cols)
+        # ax.set_ylim(bottom=0.0, top=num_rows)
+        ax.grid(which='both')
+        if show_colorbar:
+            fig.colorbar(plot)
+        if title_lst is not None:
+            ax.set_title(title_lst[idx])
+    # maybe change to a small value.
+    # fig.subplots_adjust(wspace=0, hspace=0)
+    plt.show()
