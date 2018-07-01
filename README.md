@@ -55,7 +55,7 @@ The ultimate goal is to go from research idea to results as fast as possible.
 ## Example code
 ```python
 ### retrieving certain keys from a dictionary (example from tb_utils.py)
-def retrieve_values(d, ks, tuple_fmt=False):
+def subset_dict(d, ks, tuple_fmt=False):
     out_d = {}
     for k in ks:
         out_d[k] = d[k]
@@ -208,7 +208,7 @@ def copy_folder(src_folderpath, dst_folderpath,
     create_folder(dst_folderpath, create_parent_folders=create_parent_folders)
 
     # create all folders in the destination.
-    args = retrieve_values(locals(),
+    args = subset_dict(locals(),
         ['ignore_hidden_folders', 'ignore_hidden_files'])
     fos = list_folders(src_folderpath, use_relative_paths=True, recursive=True, **args)
 
@@ -217,7 +217,7 @@ def copy_folder(src_folderpath, dst_folderpath,
         create_folder(fo_path, create_parent_folders=True)
 
     # copy all files to the destination.
-    args = retrieve_values(locals(),
+    args = subset_dict(locals(),
         ['ignore_hidden_folders', 'ignore_hidden_files', 'ignore_file_exts'])
     fis = list_files(src_folderpath, use_relative_paths=True, recursive=True, **args)
 

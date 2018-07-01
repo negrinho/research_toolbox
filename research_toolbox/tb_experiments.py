@@ -88,7 +88,7 @@ def create_run_script(main_filepath,
     # if entry_folderpath is not None:
     #     sc_lines += ['cd %s' % entry_folderpath]
     # call the main function.
-    sc_lines += generate_call_lines(**tb_ut.retrieve_values(locals(),
+    sc_lines += generate_call_lines(**tb_ut.subset_dict(locals(),
         ['main_filepath', 'argname_lst', 'argvalue_lst',
         'output_filepath', 'profile_filepath']))
     # change back to the previous folder if I change to some other folder.
@@ -229,7 +229,7 @@ def create_experiment_folder(main_filepath,
 
     # write the config for the experiment.
     tb_io.write_jsonfile(
-        tb_ut.retrieve_values(locals(), [
+        tb_ut.subset_dict(locals(), [
         'main_filepath',
         'argname_lst', 'argval_lst_lst', 'output_folderpath_argname',
         'all_experiments_folderpath', 'readme', 'experiment_name',
@@ -247,7 +247,7 @@ def create_experiment_folder(main_filepath,
         # create the script
         argvalue_lst = list(vs)
         argvalue_lst.append(cfg_folderpath)
-        call_args = tb_ut.retrieve_values(locals(),
+        call_args = tb_ut.subset_dict(locals(),
             ['argname_lst', 'argvalue_lst', 'main_filepath'])
 
         call_args['script_filepath'] = tb_fs.join_paths([cfg_folderpath, 'run.sh'])

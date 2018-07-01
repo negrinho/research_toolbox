@@ -79,7 +79,7 @@ def copy_folder(src_folderpath, dst_folderpath,
         create_folder(fo_path, create_parent_folders=True)
 
     # copy all files to the destination.
-    kwargs = tb_ut.retrieve_values(locals(),
+    kwargs = tb_ut.subset_dict(locals(),
         ['ignore_hidden_folders', 'ignore_hidden_files', 'ignore_file_exts'])
     fis = list_files(src_folderpath, use_relative_paths=True, recursive=True, **kwargs)
     for fi in fis:
@@ -137,14 +137,14 @@ def list_files(folderpath,
         ignore_hidden_folders=True, ignore_hidden_files=True, ignore_file_exts=None,
         recursive=False, use_relative_paths=False):
 
-    kwargs = tb_ut.retrieve_values(locals(), ['recursive', 'ignore_hidden_folders',
+    kwargs = tb_ut.subset_dict(locals(), ['recursive', 'ignore_hidden_folders',
         'ignore_hidden_files', 'ignore_file_exts', 'use_relative_paths'])
     return list_paths(folderpath, ignore_dirs=True, **kwargs)
 
 def list_folders(folderpath,
         ignore_hidden_folders=True, recursive=False, use_relative_paths=False):
 
-    kwargs = tb_ut.retrieve_values(locals(), [
+    kwargs = tb_ut.subset_dict(locals(), [
         'recursive', 'ignore_hidden_folders', 'use_relative_paths'])
     return list_paths(folderpath, ignore_files=True, **kwargs)
 

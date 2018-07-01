@@ -12,7 +12,7 @@ def powers_of_two(starting_power, ending_power, is_int_type=False):
         base=2, dtype='float64' if is_int_type is False else 'int64')
 
 ### auxiliary functions for avoiding boilerplate in in assignments
-def set_obj_vars(obj, d,
+def set_object_variables(obj, d,
         abort_if_exists=False, abort_if_notexists=True):
     d_to = vars(obj)
     assert (not abort_if_exists) or all(
@@ -25,8 +25,8 @@ def set_obj_vars(obj, d,
         setattr(obj, k, v)
     return obj
 
-def retrieve_obj_vars(obj, var_names, tuple_fmt=False):
-    return retrieve_values(vars(obj), var_names, tuple_fmt)
+def retrieve_object_variables(obj, var_names, tuple_fmt=False):
+    return subset_dict(vars(obj), var_names, tuple_fmt)
 
 ### partial application and other functional primitives
 def partial_apply(fn, d):
@@ -88,7 +88,7 @@ def iter_ortho_single(lst_lst_vals, reference_idxs, iteration_idx, put_reference
         rs.append(tuple(r))
     return rs
 
-def get_argnames(fn):
+def get_argument_names(fn):
     return inspect.getargspec(fn).args
 
 ### dictionary manipulation
@@ -237,7 +237,7 @@ def key_to_values(ds):
             out_d[k].add(v)
     return out_d
 
-def retrieve_values(d, ks, tuple_fmt=False):
+def subset_dict(d, ks, tuple_fmt=False):
     out_d = {}
     for k in ks:
         out_d[k] = d[k]
