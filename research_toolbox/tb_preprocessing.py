@@ -81,6 +81,12 @@ def convert_indices_to_onehot(y_idx, num_classes):
     y_one_hot[np.arange(num_examples),  y_idx] = 1.0
     return y_one_hot
 
+def all_mask(shape):
+    return np.ones(shape, dtype='float32')
+
+def none_mask(shape):
+    return np.zeros(shape, dtype='float32')
+
 def mask_union(mask_lst):
     out_mask = np.zeros_like(mask_lst[0], dtype='float32')
     for m in mask_lst:

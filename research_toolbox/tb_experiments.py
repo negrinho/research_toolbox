@@ -47,6 +47,13 @@ def get_available_filename(folderpath, filename_prefix):
             idx += 1
     return name
 
+def get_config():
+    cmd = CommandLineArgs()
+    cmd.add('config_filepath', 'str')
+    out = cmd.parse()
+    cfg = tb_io.read_jsonfile(out['config_filepath'])
+    return cfg
+
 # generating the call lines for a call to main.
 def generate_call_lines(main_filepath,
         argname_lst, argvalue_lst,
@@ -504,7 +511,12 @@ class MemoManager:
         key = self._key_from_config(config)
         assert not abort_if_exists or key not in self.key_to_filename
 
-        filename = self._get_unique_filename()
+        # if it exists, get it from the dictionary.
+        if key in self.key_to_filename:
+            filename = self.key_to_filename[key]
+        else:
+            filename = self._get_unique_filename()
+
         config_filepath = self._get_filepath('config', filename, 'json')
         tb_io.write_jsonfile(config, config_filepath)
         value_filepath = self._get_filepath('value', filename, 'pkl')

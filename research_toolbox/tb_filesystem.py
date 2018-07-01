@@ -1,6 +1,7 @@
 ### directory management.
 import os
 import shutil
+import uuid
 import research_toolbox.tb_utils as tb_ut
 
 def path_prefix(path):
@@ -193,3 +194,13 @@ def pairs_to_filename(ks, vs, kv_sep='', pair_sep='_', prefix='', suffix='.txt')
     pairs = [kv_sep.join([k, v]) for (k, v) in zip(ks, vs)]
     s = prefix + pair_sep.join(pairs) + suffix
     return s
+
+def get_unique_filename(folderpath, fileext):
+    while True:
+        filename = uuid.uuid4()
+        if not file_exists(join_paths([folderpath, "%s.%s" % (filename, fileext)])):
+            return filename
+
+def get_unique_filepath(folderpath, fileext):
+    filename = get_unique_filename(folderpath, fileext)
+    return join_paths([folderpath, "%s.%s" % (filename, fileext)])
