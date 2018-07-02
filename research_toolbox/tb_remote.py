@@ -144,7 +144,7 @@ def run_on_lithium_node(bash_command, node, servername, username, password=None,
         # node does not have gpus.
         cmd = "%s && %s" % (gpu_cmd, bash_command)
 
-    return run_on_server(cmd, **tb_ut.subset_dict(locals(),
+    return run_on_server(cmd, **tb_ut.subset_dict_via_selection(locals(),
         ['servername', 'username', 'password', 'folderpath', 'wait_for_output']))
 
 # TODO: add functionality to run on all lithium node.
@@ -174,14 +174,14 @@ class LithiumRunner:
         # should not specify both.
         assert require_gpu_types is None or require_nodes is None
 
-        self.jobs.append(tb_ut.subset_dict(locals(),
+        self.jobs.append(tb_ut.subset_dict_via_selection(locals(),
             ['bash_command', 'num_cpus', 'num_gpus',
             'mem_budget', 'time_budget', 'mem_units', 'time_units',
             'folderpath', 'wait_for_output',
             'require_gpu_types', 'require_nodes', 'run_on_head_node']))
 
     def run(self, run_only_if_enough_resources_for_all=True):
-        args = tb_ut.subset_dict(vars(self), ['servername', 'username', 'password'])
+        args = tb_ut.subset_dict_via_selection(vars(self), ['servername', 'username', 'password'])
         args['abort_if_any_node_unavailable'] = False
 
         # get the resource availability and filter out unavailable nodes.
@@ -201,7 +201,7 @@ class LithiumRunner:
             # based on the gpu type restriction.
             if x['require_gpu_types'] is not None:
                 req_gpu_nodes = tb_ut.flatten(
-                    tb_ut.subset_dict(g, x['require_gpu_types']))
+                    tb_ut.subset_dict_via_selection(g, x['require_gpu_types']))
             else:
                 # NOTE: only consider the nodes that are available anyway.
                 req_gpu_nodes = d.keys()
@@ -255,12 +255,12 @@ class LithiumRunner:
                 remaining_jobs.append(x)
             else:
                 out = run_on_lithium_node(**tb_ut.merge_dicts([
-                    tb_ut.subset_dict(vars(self),
+                    tb_ut.subset_dict_via_selection(vars(self),
                         ['servername', 'username', 'password']),
-                    tb_ut.subset_dict(x,
+                    tb_ut.subset_dict_via_selection(x,
                         ['bash_command', 'folderpath',
                         'wait_for_output', 'run_on_head_node']),
-                    tb_ut.subset_dict(c,
+                    tb_ut.subset_dict_via_selection(c,
                         ['node', 'visible_gpu_ids'])])
                )
                 outs.append(out)
@@ -309,7 +309,7 @@ def run_on_matrix(bash_command, servername, username, password=None,
         run_script_cmd,
         "rm %s" % script_name])
 
-    return run_on_server(remote_cmd, **tb_ut.subset_dict(
+    return run_on_server(remote_cmd, **tb_ut.subset_dict_via_selection(
         locals(), ['servername', 'username', 'password',
             'folderpath', 'wait_for_output']))
 

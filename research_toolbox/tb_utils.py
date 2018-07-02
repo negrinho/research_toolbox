@@ -25,8 +25,12 @@ def set_object_variables(obj, d,
         setattr(obj, k, v)
     return obj
 
-def retrieve_object_variables(obj, var_names, tuple_fmt=False):
-    return subset_dict(vars(obj), var_names, tuple_fmt)
+def get_object_variables(obj, varnames, tuple_fmt=False):
+    d = vars(obj)
+    if tuple_fmt:
+        return tuple([d[k] for k in varnames])
+    else:
+        return subset_dict_via_selection(d, varnames)
 
 ### partial application and other functional primitives
 def partial_apply(fn, d):
@@ -237,16 +241,17 @@ def key_to_values(ds):
             out_d[k].add(v)
     return out_d
 
-def subset_dict(d, ks, tuple_fmt=False):
-    out_d = {}
-    for k in ks:
-        out_d[k] = d[k]
+# NOTE: for now, no checking regarding the existence of the key.
+def subset_dict_via_selection(d, ks):
+    return {k : d[k] for k in ks}
 
-    if tuple_fmt:
-        out_d = tuple([out_d[k] for k in ks])
+def subset_dict_via_deletion(d, ks):
+    out_d = dict(d)
+    for k in ks:
+        out_d.pop(k)
     return out_d
 
-def set_values(d_to, d_from,
+def set_dict_values(d_to, d_from,
         abort_if_exists=False, abort_if_notexists=True):
     assert (not abort_if_exists) or all(
         [k not in d_to for k in d_from.iterkeys()])
@@ -255,7 +260,7 @@ def set_values(d_to, d_from,
 
     d_to.update(d_from)
 
-def sort_items(d, by_key=True, decreasing=False):
+def sort_dict_items(d, by_key=True, decreasing=False):
     key_fn = (lambda x: x[0]) if by_key else (lambda x: x[1])
     return sorted(d.items(), key=key_fn, reverse=decreasing)
 
