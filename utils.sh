@@ -1,5 +1,4 @@
 
-
 ut_show_cpu_info() { lscpu; }
 ut_show_gpu_info() { nvidia-smi; }
 ut_show_memory_info() { free -m; }
@@ -18,7 +17,8 @@ ut_delete_folder_interactively() { rm -rfi "$1"; }
 
 ut_sleep_in_seconds() { sleep "$1s"; }
 
-ut_run_on_bridges() { ssh "$1" -t "$2"; }
+ut_run_on_server() { ssh "$1" -t "$2"; }
+ut_run_python_command() { python -c "$1"; }
 
 
 # run_on_server

@@ -204,3 +204,6 @@ def get_unique_filename(folderpath, fileext):
 def get_unique_filepath(folderpath, fileext):
     filename = get_unique_filename(folderpath, fileext)
     return join_paths([folderpath, "%s.%s" % (filename, fileext)])
+
+def get_current_working_directory():
+    return os.getcwd()
