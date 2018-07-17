@@ -48,3 +48,6 @@ ut_find_files_and_exec() { find "$1" -name "$2" -exec "$3" {} \ ; }
 UT_RSYNC_FLAGS="--archive --update --recursive --verbose"
 ut_sync_folder_to_server() { rsync $UT_RSYNC_FLAGS "$1/" "$2/"; }
 ut_sync_folder_from_server() { rsync $UT_RSYNC_FLAGS "$1/" "$2/"; }
+
+ut_show_environment_variables() { printenv; }
+ut_preappend_to_pythonpath() { export PYTHONPATH="$1:$PYTHONPATH"; }
