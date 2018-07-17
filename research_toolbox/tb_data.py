@@ -112,3 +112,21 @@ def load_cifar100(data_folderpath, num_val, flatten=False, one_hot=True, normali
 
     Xval, yval = Xtrain[-num_val:], ytrain[-num_val:]
     return (Xtrain, ytrain, Xval, yval, Xtest, ytest)
+
+def fake_labels(num_elems, num_classes):
+    return np.random.randint(num_classes, size=(num_elems,))
+
+def fake_sequences(num_sequences, vocab_size, sequence_length):
+    return np.random.randint(vocab_size, size=(num_sequences, sequence_length))
+
+def fake_vectors(num_vecs, dim):
+    return np.random.normal(size=(num_vecs, dim))
+
+def fake_images(num_images, height, width, num_channels):
+    return np.random.normal(size=(num_images, height, width, num_channels))
+
+def fake_videos(num_videos, num_frames, height, width, num_channels):
+    return np.random.normal(size=(num_videos, num_frames, height, width, num_channels))
+
+def fake_tensors(num_tensors, shape):
+    return np.random.normal(size=(num_tensors, ) + shape)
