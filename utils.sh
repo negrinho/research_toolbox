@@ -35,14 +35,15 @@ ut_show_git_commits_for_file(){ git log --follow -- "$1"; }
 ut_show_oneline_git_log(){ git log --pretty=oneline; }
 ut_show_files_ever_tracked_by_git() { git log --pretty=format: --name-only --diff-filter=A | sort - | sed '/^$/d'; }
 ut_show_files_currently_tracked_by_git_on_branch() { git ls-tree -r "$1" --name-only; }
-ut_discard_current_changes_on_git_tracked_file() { git checkout -- "$1"; }
+ut_discard_git_uncommited_changes_for_file() { git checkout -- "$1"; }
+ut_discard_all_git_uncommitted_changes() { git checkout -- .; }
 
 ut_grep_history() { history | grep "$1"; }
 ut_show_known_hosts() { cat ~/.ssh/config; }
 ut_register_ssh_key_on_server() { ssh-copy-id "$1"; }
 
 ut_create_folder_on_server() { ut_run_command_on_server "mkdir -p \"$1\"" "$2"; }
-ut_find_files_and_exec() { find "$1" -name "$2" -exec "$3" {} \; }
+ut_find_files_and_exec() { find "$1" -name "$2" -exec "$3" {} \ ; }
 
 UT_RSYNC_FLAGS="--archive --update --recursive --verbose"
 ut_sync_folder_to_server() { rsync $UT_RSYNC_FLAGS "$1/" "$2/"; }
