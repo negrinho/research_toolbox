@@ -187,6 +187,18 @@ def filter_dict(d, fn):
 def map_dict(d, fn):
     return {k : fn(k, v) for (k, v) in d.iteritems()}
 
+def invert_injective_dict(a_to_b):
+    b_to_a = dict([(b, a) for (a, b) in a_to_b.iteritems()])
+    return b_to_a
+
+def invert_noninjective_dict(a_to_b):
+    d = {}
+    for (x, y) in a_to_b.iteritems():
+        if y not in d:
+            d[y] = []
+        d[y].append(x)
+    return d
+
 def structure(ds, ks):
     get_fn = lambda k: lambda x: x[k]
 

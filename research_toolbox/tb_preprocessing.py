@@ -28,18 +28,6 @@ def index_tokens(tokens, start_index=0):
     token_to_index = dict(zip(tokens, range(start_index, num_tokens + start_index)))
     return token_to_index
 
-def reverse_mapping(a_to_b):
-    b_to_a = dict([(b, a) for (a, b) in a_to_b.iteritems()])
-    return b_to_a
-
-def reverse_non_unique_mapping(a_to_b):
-    d = {}
-    for (x, y) in a_to_b.iteritems():
-        if y not in d:
-            d[y] = []
-        d[y].append(x)
-    return d
-
 def preprocess_sentence(sentence, token_to_index,
     unk_idx=-1, bos_idx=-1, eos_idx=-1, bos_times=0, eos_times=0):
     """If no unk_idx is specified and there are tokens that are sentences that
@@ -111,3 +99,36 @@ def mask_from_lengths(length_lst, max_length):
         out_mask[i, x:] = 0.0
     return out_mask
 
+def pad_tensor(x, output_shape, pad_val, left_corner_pos):
+    assert len(x.shape) == len(output_shape)
+    assert len(left_corner_pos) == len(output_shape)
+    assert all(in_dim + idx <= out_dim for in_dim, out_dim, idx in zip(x.shape, output_shape, left_corner_pos))
+    # NOTE: current limitation, but not a big problem in practice. improve later.
+    assert len(output_shape) <= 5 and len(output_shape) > 0
+    assert type(output_shape) == tuple and type(left_corner_pos) == tuple
+
+    out_x = np.empty(output_shape, x.dtype)
+    out_x.fill(pad_val)
+
+    if len(x.shape) == 1:
+        idx0 = left_corner_pos[0]
+        n0 = x.shape[0]
+        out_x[idx0:idx0 + n0] = x
+    elif len(x.shape) == 2:
+        idx0, idx1 = left_corner_pos
+        n0, n1 = x.shape
+        out_x[idx0:idx0 + n0, idx1:idx1 + n1] = x
+    elif len(x.shape) == 3:
+        idx0, idx1, idx2 = left_corner_pos
+        n0, n1, n2 = x.shape
+        out_x[idx0:idx0 + n0, idx1:idx1 + n1, idx2:idx2 + n2] = x
+    elif len(x.shape) == 4:
+        idx0, idx1, idx2, idx3 = left_corner_pos
+        n0, n1, n2, n3 = x.shape
+        out_x[idx0:idx0 + n0, idx1:idx1 + n1, idx2:idx2 + n2, idx3:idx3 + n3] = x
+    elif len(x.shape) == 5:
+        idx0, idx1, idx2, idx3, idx4 = left_corner_pos
+        n0, n1, n2, n3, n4 = x.shape
+        out_x[idx0:idx0 + n0, idx1:idx1 + n1, idx2:idx2 + n2, idx3:idx3 + n3, idx4:idx4 + n4] = x
+
+    return out_x

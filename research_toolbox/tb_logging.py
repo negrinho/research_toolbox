@@ -10,8 +10,6 @@ import research_toolbox.tb_utils as tb_ut
 import research_toolbox.tb_resources as tb_rs
 
 def convert_between_time_units(x, src_units='seconds', dst_units='hours'):
-    units = ['seconds', 'minutes', 'hours', 'days', 'weeks']
-    assert src_units in units and dst_units in units
     d = {}
     d['seconds'] = 1.0
     d['minutes'] = 60.0 * d['seconds']
