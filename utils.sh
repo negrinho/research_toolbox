@@ -4,6 +4,10 @@ ut_show_gpu_info() { nvidia-smi; }
 ut_show_memory_info() { free -m; }
 ut_show_hardware_info() { lshw; }
 
+ut_up1() { cd ..; }
+ut_up2() { cd ../..; }
+ut_up3() { cd ../../..; }
+
 ut_get_containing_folderpath() { echo "$(dirname "$1")"; }
 ut_get_filename_from_filepath() { echo "$(basename "$1")"; }
 ut_get_foldername_from_folderpath() { echo "$(basename "$1")"; }
@@ -16,6 +20,8 @@ ut_rename() { mv "$1" "$2"; }
 ut_delete_folder() { rm -rf "$1"; }
 ut_delete_folder_interactively() { rm -rfi "$1"; }
 ut_get_folder_size() { du -sh $1; }
+ut_rename_file_in_place(){ folderpath="$(dirname "$1")" && mv "$1" "$(dirname "$1")/$2"; }
+ut_rename_folder_in_place(){ folderpath="$(dirname "$1")" && mv "$1" "$(dirname "$1")/$2"; }
 
 ut_sleep_in_seconds() { sleep "$1s"; }
 
@@ -51,3 +57,48 @@ ut_sync_folder_from_server() { rsync $UT_RSYNC_FLAGS "$1/" "$2/"; }
 
 ut_show_environment_variables() { printenv; }
 ut_preappend_to_pythonpath() { export PYTHONPATH="$1:$PYTHONPATH"; }
+
+ut_run_command_on_server() { ssh "$2" -t "$1"; }
+ut_run_command_on_server_on_folder() { ssh "$2" -t "cd \"$3\" && $1"; }
+ut_run_bash_on_server_on_folder() { ssh "$1" -t "cd \"$2\" && bash"; }
+
+# both are slurm managed clusters. hosts defined in ~/.ssh/config
+ut_run_command_on_bridges() { ut_run_command_on_server "$1" bridges; }
+ut_run_command_on_bridges_on_folder() { ut_run_command_on_server_on_folder "$1" bridges "$2"; }
+ut_run_bash_on_bridges_on_folder() { ut_run_bash_on_server_on_folder bridges "$1"; }
+
+ut_run_command_on_matrix() { ut_run_command_on_server "$1" matrix; }
+ut_run_command_on_matrix_on_folder() { ut_run_command_on_server_on_folder "$1" matrix "$2"; }
+ut_run_bash_on_matrix_on_folder() { ut_run_bash_on_server_on_folder matrix "$1"; }
+
+# command, job name, folder, num cpus, memory in gbs, time in hours
+# limits: 4GB per cpu, 48 hours,
+ut_submit_bridges_cpu_job_with_resources() {
+    script='#!/bin/bash'"
+#SBATCH --nodes=1
+#SBATCH --partition=RM-shared
+#SBATCH --cpus-per-task=$4
+#SBATCH --mem=$5GB
+#SBATCH --time=$6:00:00
+#SBATCH --job-name=\"$2\"
+$1" && ut_run_command_on_bridges "cd \"./$3\" && echo \"$script\" > _run.sh && chmod +x _run.sh && sbatch _run.sh && rm _run.sh";
+}
+
+# 1: command, 2: job name, 3: folder, 4: num cpus, 5: num_gpus, 6: memory in gbs, 7: time in hours
+# limits: 7GB per gpu, 48 hours, 16 cores per gpu,
+ut_submit_bridges_gpu_job_with_resources() {
+    script='#!/bin/bash'"
+#SBATCH --nodes=1
+#SBATCH --partition=GPU-shared
+#SBATCH --gres=gpu:k80:$5
+#SBATCH --cpus-per-task=$4
+#SBATCH --mem=$6GB
+#SBATCH --time=$7:00:00
+#SBATCH --job-name=\"$2\"
+$1" && ut_run_command_on_bridges "cd \"./$3\" && echo \"$script\" > _run.sh && chmod +x _run.sh && sbatch _run.sh && rm _run.sh";
+}
+
+ut_show_bridges_queue() { ut_run_command_on_bridges "squeue"; }
+ut_show_my_jobs_on_bridges() { ut_run_command_on_bridges "squeue -u rpereira"; }
+ut_cancel_job_on_bridges() { ut_run_command_on_bridges "scancel -n \"$1\""; }
+ut_cancel_all_my_jobs_on_bridges() { ut_run_command_on_bridges "scancel -u rpereira"}
