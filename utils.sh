@@ -7,6 +7,9 @@ ut_show_hardware_info() { lshw; }
 ut_up1() { cd ..; }
 ut_up2() { cd ../..; }
 ut_up3() { cd ../../..; }
+ut_get_last_process_id() { echo "$!"; }
+ut_get_last_process_exit_code() { echo "$?"; }
+
 
 ut_get_containing_folderpath() { echo "$(dirname "$1")"; }
 ut_get_filename_from_filepath() { echo "$(basename "$1")"; }
@@ -71,29 +74,39 @@ ut_run_command_on_matrix() { ut_run_command_on_server "$1" matrix; }
 ut_run_command_on_matrix_on_folder() { ut_run_command_on_server_on_folder "$1" matrix "$2"; }
 ut_run_bash_on_matrix_on_folder() { ut_run_bash_on_server_on_folder matrix "$1"; }
 
-# command, job name, folder, num cpus, memory in gbs, time in hours
+ut_create_conda_environment() { conda create --name "$1"; }
+ut_create_conda_py27_environment() { conda create --name "$1" py36 python=2.7 anaconda; }
+ut_create_conda_py36_environment() { conda create --name "$1" py36 python=3.6 anaconda; }
+ut_show_conda_environments() { conda info --envs; }
+ut_show_installed_conda_packages() { conda list; }
+ut_delete_conda_environment() { conda env remove --name "$1"; }
+ut_activate_conda_environment() { source activate "$1"; }
+
+# command, job name, folder, num cpus, memory in mbs, time in minutes
 # limits: 4GB per cpu, 48 hours,
+# NOTE: read https://www.psc.edu/bridges/user-guide/running-jobs for more details.
 ut_submit_bridges_cpu_job_with_resources() {
     script='#!/bin/bash'"
 #SBATCH --nodes=1
 #SBATCH --partition=RM-shared
 #SBATCH --cpus-per-task=$4
-#SBATCH --mem=$5GB
-#SBATCH --time=$6:00:00
+#SBATCH --mem=$5MB
+#SBATCH --time=$6
 #SBATCH --job-name=\"$2\"
 $1" && ut_run_command_on_bridges "cd \"./$3\" && echo \"$script\" > _run.sh && chmod +x _run.sh && sbatch _run.sh && rm _run.sh";
 }
 
-# 1: command, 2: job name, 3: folder, 4: num cpus, 5: num_gpus, 6: memory in gbs, 7: time in hours
+# 1: command, 2: job name, 3: folder, 4: num cpus, 5: num_gpus, 6: memory in mbs, 7: time in minutes
 # limits: 7GB per gpu, 48 hours, 16 cores per gpu,
+# NOTE: read https://www.psc.edu/bridges/user-guide/running-jobs for more details.
 ut_submit_bridges_gpu_job_with_resources() {
     script='#!/bin/bash'"
 #SBATCH --nodes=1
 #SBATCH --partition=GPU-shared
 #SBATCH --gres=gpu:k80:$5
 #SBATCH --cpus-per-task=$4
-#SBATCH --mem=$6GB
-#SBATCH --time=$7:00:00
+#SBATCH --mem=$6MB
+#SBATCH --time=$7
 #SBATCH --job-name=\"$2\"
 $1" && ut_run_command_on_bridges "cd \"./$3\" && echo \"$script\" > _run.sh && chmod +x _run.sh && sbatch _run.sh && rm _run.sh";
 }
@@ -101,4 +114,4 @@ $1" && ut_run_command_on_bridges "cd \"./$3\" && echo \"$script\" > _run.sh && c
 ut_show_bridges_queue() { ut_run_command_on_bridges "squeue"; }
 ut_show_my_jobs_on_bridges() { ut_run_command_on_bridges "squeue -u rpereira"; }
 ut_cancel_job_on_bridges() { ut_run_command_on_bridges "scancel -n \"$1\""; }
-ut_cancel_all_my_jobs_on_bridges() { ut_run_command_on_bridges "scancel -u rpereira"}
+ut_cancel_all_my_jobs_on_bridges() { ut_run_command_on_bridges "scancel -u rpereira"; }
