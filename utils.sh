@@ -115,3 +115,10 @@ ut_show_bridges_queue() { ut_run_command_on_bridges "squeue"; }
 ut_show_my_jobs_on_bridges() { ut_run_command_on_bridges "squeue -u rpereira"; }
 ut_cancel_job_on_bridges() { ut_run_command_on_bridges "scancel -n \"$1\""; }
 ut_cancel_all_my_jobs_on_bridges() { ut_run_command_on_bridges "scancel -u rpereira"; }
+
+# uses a deepo docker based image.
+# https://www.sylabs.io/guides/2.5.1/user-guide/
+ut_build_py27_cpu_singularity_container() { sudo singularity build --writable py27_cpu.img docker://ufoym/deepo:all-py27-cpu; }
+ut_build_py36_cpu_singularity_container() { sudo singularity build --writable py36_cpu.img docker://ufoym/deepo:all-py36-cpu; }
+ut_build_py27_gpu_singularity_container() { sudo singularity build --writable py27_gpu.img docker://ufoym/deepo:all-py27; }
+ut_build_py36_gpu_singularity_container() { sudo singularity build --writable py36_gpu.img docker://ufoym/deepo:all-py36; }
