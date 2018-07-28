@@ -45,6 +45,22 @@ def write_jsonfile(d, filepath, sort_keys=False, compactify=False):
         indent = None if compactify else 4
         json.dump(d, f, indent=indent, sort_keys=sort_keys)
 
+def json2key(d):
+    return json.dumps(d, sort_keys=True)
+
+def json2str(d):
+    return json.dumps(d)
+
+def str2json(s):
+    return json.loads(s)
+
+def read_jsonlogfile(filepath):
+    with open(filepath, 'r') as f:
+        return [str2json(line) for line in f]
+
+def write_jsonlogfile(filepath, ds, append=False):
+    write_textfile(filepath, map(json2str, ds), append=append, with_newline=True)
+
 def read_picklefile(filepath):
     with open(filepath, 'rb') as f:
         return pickle.load(f)
@@ -74,3 +90,4 @@ def write_csvfile(ds, filepath, sep=',',
         lines.append(sep.join([str(d[k]) if k in d else '' for k in ks]))
 
     write_textfile(filepath, lines)
+

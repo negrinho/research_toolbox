@@ -57,6 +57,24 @@ def preprocess_sentence(sentence, token_to_index,
 
     return proc_sent
 
+def tokenize(sequence, token_to_idx, target_length,
+        unk_token='_UNK_', bos_token="_BOS_", eos_token="_EOS_", pad_token="_PAD_",
+        num_bos=1, num_eos=1):
+
+    tk_seq = []
+    if num_bos > 0:
+        bos_idx = token_to_idx[bos_token]
+        tk_seq.extend([bos_idx] * num_bos)
+
+    for tk in sequence:
+        tk_idx = token_to_index[tk] if tk in token_to_idx else token_to_idx[unk_token]
+        tk_seq.append(tk_idx)
+
+    if num_eos > 0:
+        eos_idx = token_to_idx[eos_token]
+        tk_seq.extend([eos_idx] * num_eos)
+    return tk_seq
+
 def convert_onehot_to_indices(y_onehot):
     assert len(y_onehot.shape) == 2
     y_idx = np.where(y_onehot > 0.0)[1]
@@ -98,6 +116,17 @@ def mask_from_lengths(length_lst, max_length):
     for i, x in enumerate(length_lst):
         out_mask[i, x:] = 0.0
     return out_mask
+
+def mask_indices1d(mask):
+    assert len(mask.shape) == 1
+    return np.where(mask > 0.5)[0]
+
+def true_indices1d(x):
+    assert len(x.shape) == 1
+    return np.where(x)[0]
+
+def num_dims(x):
+    return len(x.shape)
 
 def pad_tensor(x, output_shape, pad_val, left_corner_pos):
     assert len(x.shape) == len(output_shape)

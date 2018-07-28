@@ -10,10 +10,10 @@ ut_up3() { cd ../../..; }
 ut_get_last_process_id() { echo "$!"; }
 ut_get_last_process_exit_code() { echo "$?"; }
 
-
 ut_get_containing_folderpath() { echo "$(dirname "$1")"; }
 ut_get_filename_from_filepath() { echo "$(basename "$1")"; }
 ut_get_foldername_from_folderpath() { echo "$(basename "$1")"; }
+ut_get_absolute_path_from_relative_path() { realpath "$1"; }
 
 ut_find_files() { find "$1" -name "$2"; }
 ut_find_folders() { find "$1" -type d -name "$2"; }

@@ -1,4 +1,6 @@
 
+# NOTE: some stuff can be moved to the tb_numpy.
+
 # Implementation requests
 # * tb_augmentation.py
 # * tb_data.py
