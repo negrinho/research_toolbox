@@ -161,3 +161,17 @@ def pad_tensor(x, output_shape, pad_val, left_corner_pos):
         out_x[idx0:idx0 + n0, idx1:idx1 + n1, idx2:idx2 + n2, idx3:idx3 + n3, idx4:idx4 + n4] = x
 
     return out_x
+
+def reshape_apply(x, reshape_fn, apply_fn, pre_shape=None, post_shape=None):
+    if pre_shape is not None:
+        x = reshape_fn(x, pre_shape)
+    x = apply_fn(x)
+    if post_shape is not None:
+        x = reshape_fn(x, post_shape)
+    return x
+
+def pack(xs):
+    return np.concatenate(xs)
+
+def unpack(x):
+    return np.split(x, x.shape[0])
