@@ -1,4 +1,5 @@
 import numpy as np
+import re
 
 ### for simple NLP
 def keep_short_sentences(sentence_lst, max_length):
@@ -57,23 +58,29 @@ def preprocess_sentence(sentence, token_to_index,
 
     return proc_sent
 
-def tokenize(sequence, token_to_idx, target_length,
+def tokenize(sequence, token_to_index, target_length,
         unk_token='_UNK_', bos_token="_BOS_", eos_token="_EOS_", pad_token="_PAD_",
         num_bos=1, num_eos=1):
 
-    tk_seq = []
+    out_seq = []
     if num_bos > 0:
-        bos_idx = token_to_idx[bos_token]
-        tk_seq.extend([bos_idx] * num_bos)
+        bos_idx = token_to_index[bos_token]
+        out_seq.extend([bos_idx] * num_bos)
 
     for tk in sequence:
-        tk_idx = token_to_index[tk] if tk in token_to_idx else token_to_idx[unk_token]
-        tk_seq.append(tk_idx)
+        tk_idx = token_to_index[tk] if tk in token_to_index else token_to_index[unk_token]
+        out_seq.append(tk_idx)
 
     if num_eos > 0:
-        eos_idx = token_to_idx[eos_token]
-        tk_seq.extend([eos_idx] * num_eos)
-    return tk_seq
+        eos_idx = token_to_index[eos_token]
+        out_seq.extend([eos_idx] * num_eos)
+    return out_seq
+
+def untokenize(sequence, index_to_token, original_length=None):
+    out_seq = [index_to_token[idx] for idx in sequence]
+    if original_length is not None:
+        out_seq = out_seq[:original_length]
+    return out_seq
 
 def convert_onehot_to_indices(y_onehot):
     assert len(y_onehot.shape) == 2
@@ -175,3 +182,58 @@ def pack(xs):
 
 def unpack(x):
     return np.split(x, x.shape[0])
+
+def multi_to_flat_indices(indices, shape):
+    assert len(indices.shape) == 2
+    assert indices.shape[1] == len(shape)
+    aux = shape[1:] + (1,)
+    strides = np.cumprod(aux[::-1])[::-1].astype('int64')
+    flat_indices = (indices * strides[None, :]).sum(axis=1)
+    return flat_indices
+
+def flat_to_multi_indices(indices, shape):
+    assert len(indices.shape) == 1
+    num_indices = indices.shape[0]
+    num_dims = len(shape)
+    aux = shape[1:] + (1,)
+    strides = np.cumprod(aux[::-1])[::-1].astype('int64')
+    multi_indices = np.zeros((num_indices, num_dims), dtype='int64')
+    acc = np.array(indices)
+    for idx in xrange(num_dims):
+        x = strides[idx]
+        multi_indices[:, idx] = np.floor_divide(acc, x)
+        acc -= x * multi_indices[:, idx]
+    return multi_indices
+
+def sorting_indices(x, decreasing):
+    assert len(x.shape) == 2
+    indices = np.argsort(x, axis=1)
+    if decreasing:
+        indices = np.fliplr(indices)
+    return indices
+
+def topk(x, k):
+    indices = sorting_indices(x, True)[:, :k]
+    aux_indices = np.tile(np.arange(x.shape[0])[:, None], (1, k))
+    return x[aux_indices, indices]
+
+def bottomk(x, k):
+    indices = sorting_indices(x, False)[:, :k]
+    aux_indices = np.tile(np.arange(x.shape[0])[:, None], (1, k))
+    return x[aux_indices, indices]
+
+def reflect(x, axis):
+    return np.flip(x, axis)
+
+def zero_out_digits(s):
+    out_s = []
+    for ch in s:
+        if ch.isdigit():
+            out_s.append('0')
+        else:
+            out_s.append(ch)
+    return ''.join(out_s)
+
+def split_sentence_into_word_tokens(sentence):
+    from nltk import word_tokenize
+    return word_tokenize(sentence)
