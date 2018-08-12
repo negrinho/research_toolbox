@@ -9,6 +9,7 @@ ut_up2() { cd ../..; }
 ut_up3() { cd ../../..; }
 ut_get_last_process_id() { echo "$!"; }
 ut_get_last_process_exit_code() { echo "$?"; }
+ut_wait_on_process_id() { wait "$1"; }
 
 ut_get_containing_folderpath() { echo "$(dirname "$1")"; }
 ut_get_filename_from_filepath() { echo "$(basename "$1")"; }
@@ -25,8 +26,14 @@ ut_delete_folder_interactively() { rm -rfi "$1"; }
 ut_get_folder_size() { du -sh $1; }
 ut_rename_file_in_place(){ folderpath="$(dirname "$1")" && mv "$1" "$(dirname "$1")/$2"; }
 ut_rename_folder_in_place(){ folderpath="$(dirname "$1")" && mv "$1" "$(dirname "$1")/$2"; }
+ut_compress_folder(){ foldername=`ut_get_foldername_from_folderpath $1` && tar -zcf "$foldername.tar.gz" "$1"; }
+ut_uncompress_folder(){ tar -zxf "$1"; }
+
+ut_send_mail_message_with_subject_to_address() { echo "$1" | mail "--subject=$2" "$3"; }
+ut_send_mail_message_with_subject_and_attachment_to_address() { echo "$1" | mail "--subject=$2" "--attach=$3" "$4"; }
 
 ut_sleep_in_seconds() { sleep "$1s"; }
+ut_run_every_num_seconds() { watch -n "$2" "$1"; }
 
 ut_run_command_on_server() { ssh "$2" -t "$1"; }
 ut_run_command_on_server_on_folder() { ssh "$2" -t "cd \"$3\" && $1"; }
@@ -122,3 +129,10 @@ ut_build_py27_cpu_singularity_container() { sudo singularity build --writable py
 ut_build_py36_cpu_singularity_container() { sudo singularity build --writable py36_cpu.img docker://ufoym/deepo:all-py36-cpu; }
 ut_build_py27_gpu_singularity_container() { sudo singularity build --writable py27_gpu.img docker://ufoym/deepo:all-py27; }
 ut_build_py36_gpu_singularity_container() { sudo singularity build --writable py36_gpu.img docker://ufoym/deepo:all-py36; }
+
+ut_install_packages() {
+    sudo apt-get install \
+        singularity \
+        mailutils \
+        tree;
+}

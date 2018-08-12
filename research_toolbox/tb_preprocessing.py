@@ -29,37 +29,9 @@ def index_tokens(tokens, start_index=0):
     token_to_index = dict(zip(tokens, range(start_index, num_tokens + start_index)))
     return token_to_index
 
-def preprocess_sentence(sentence, token_to_index,
-    unk_idx=-1, bos_idx=-1, eos_idx=-1, bos_times=0, eos_times=0):
-    """If no unk_idx is specified and there are tokens that are sentences that
-    have tokens that are not in the dictionary, it will throw an exception.
-    it is also possible to look at padding using this type of functionality.
-    """
-    assert bos_idx == -1 or (bos_idx >= 0 and bos_times >= 0)
-    assert eos_idx == -1 or (eos_idx >= 0 and eos_times >= 0)
-    assert (unk_idx == -1 and all([tk in token_to_index for tk in sentence])) or (unk_idx >= 0)
-
-    proc_sent = []
-    # adding the begin of sentence tokens
-    if bos_idx != -1:
-        proc_sent.extend([bos_idx] * bos_times)
-
-    # preprocessing the sentence
-    for tk in sentence:
-        if tk in token_to_index:
-            idx = token_to_index[tk]
-            proc_sent.append(idx)
-        else:
-            proc_sent.append(unk_idx)
-
-    # adding the end of sentence token
-    if eos_idx != -1:
-        proc_sent.extend([eos_idx] * eos_times)
-
-    return proc_sent
-
 def tokenize(sequence, token_to_index, target_length,
-        unk_token='_UNK_', bos_token="_BOS_", eos_token="_EOS_", pad_token="_PAD_",
+        unk_token='_UNK_', bos_token="_BOS_", eos_token="_EOS_",
+        pad_token="_PAD_", overflow_token="_OVERFLOW_",
         num_bos=1, num_eos=1):
 
     out_seq = []
@@ -74,13 +46,50 @@ def tokenize(sequence, token_to_index, target_length,
     if num_eos > 0:
         eos_idx = token_to_index[eos_token]
         out_seq.extend([eos_idx] * num_eos)
+
+    if len(out_seq) <= target_length:
+        pad_length = target_length - len(out_seq)
+        pad_idx = token_to_index[pad_token]
+        out_seq.extend([pad_idx] * pad_length)
+    else:
+        overflow_idx = token_to_index[overflow_token]
+        out_seq[target_length - 1] = overflow_idx
+        out_seq = out_seq[:target_length]
     return out_seq
 
-def untokenize(sequence, index_to_token, original_length=None):
-    out_seq = [index_to_token[idx] for idx in sequence]
-    if original_length is not None:
-        out_seq = out_seq[:original_length]
-    return out_seq
+def untokenize(sequence, index_to_token):
+    return [index_to_token[idx] for idx in sequence]
+
+def character_tokenize(sentence, char_to_index, target_length,
+        unk_token='_UNK_', bos_token="_BOS_", eos_token="_EOS_", pad_token="_PAD_",
+        num_bos=1, num_eos=1):
+    return tokenize(sentence, char_to_index, target_length,
+        unk_token=unk_token, bos_token=bos_token, eos_token=eos_token, pad_token=pad_token,
+        num_bos=num_bos, num_eos=num_eos)
+
+def word_tokenize(sentence, word_to_index, target_length,
+        unk_token='_UNK_', bos_token="_BOS_", eos_token="_EOS_", pad_token="_PAD_",
+        num_bos=1, num_eos=1):
+    tokens = split_sentence_into_word_tokens(sentence)
+    return tokenize(tokens, word_to_index, target_length,
+        unk_token=unk_token, bos_token=bos_token, eos_token=eos_token, pad_token=pad_token,
+        num_bos=num_bos, num_eos=num_eos)
+
+def zero_out_digits(s):
+    out_s = []
+    for ch in s:
+        if ch.isdigit():
+            out_s.append('0')
+        else:
+            out_s.append(ch)
+    return ''.join(out_s)
+
+def lowercase(s):
+    return s.lower()
+
+def split_sentence_into_word_tokens(sentence):
+    from nltk import word_tokenize as nltk_word_tokenize
+    return nltk_word_tokenize(sentence)
 
 def convert_onehot_to_indices(y_onehot):
     assert len(y_onehot.shape) == 2
@@ -166,7 +175,6 @@ def pad_tensor(x, output_shape, pad_val, left_corner_pos):
         idx0, idx1, idx2, idx3, idx4 = left_corner_pos
         n0, n1, n2, n3, n4 = x.shape
         out_x[idx0:idx0 + n0, idx1:idx1 + n1, idx2:idx2 + n2, idx3:idx3 + n3, idx4:idx4 + n4] = x
-
     return out_x
 
 def reshape_apply(x, reshape_fn, apply_fn, pre_shape=None, post_shape=None):
@@ -224,16 +232,3 @@ def bottomk(x, k):
 
 def reflect(x, axis):
     return np.flip(x, axis)
-
-def zero_out_digits(s):
-    out_s = []
-    for ch in s:
-        if ch.isdigit():
-            out_s.append('0')
-        else:
-            out_s.append(ch)
-    return ''.join(out_s)
-
-def split_sentence_into_word_tokens(sentence):
-    from nltk import word_tokenize
-    return word_tokenize(sentence)
