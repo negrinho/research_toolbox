@@ -128,7 +128,7 @@ def mask_invert(mask):
 
 def mask_from_lengths(length_lst, max_length):
     n = len(length_lst)
-    out_mask = np.ones(n, max_length, dtype='float32')
+    out_mask = np.ones((n, max_length), dtype='float32')
     for i, x in enumerate(length_lst):
         out_mask[i, x:] = 0.0
     return out_mask
@@ -212,6 +212,43 @@ def flat_to_multi_indices(indices, shape):
         multi_indices[:, idx] = np.floor_divide(acc, x)
         acc -= x * multi_indices[:, idx]
     return multi_indices
+
+def gather(x, indices):
+    assert len(x.shape) == 2
+    assert len(indices.shape) == 1
+    return x[indices]
+
+# NOTE: this is a stateful update.
+def scatter_update(x, y, from_indices, to_indices):
+    assert len(to_indices.shape) == 1
+    assert len(from_indices.shape) == 1
+    assert from_indices.shape[0] == to_indices.shape[0]
+    y[to_indices] = x[from_indices]
+    return y
+
+def sparse_column_to_multi_indices(col_indices_lst):
+    num_indices = sum([len(col_idxs) for col_idxs in col_indices_lst])
+    out = np.zeros((num_indices, 2), dtype='int64')
+    left = 0
+    for row_idx, col_idxs in enumerate(col_indices_lst):
+        right = left + len(col_idxs)
+        out[left:right, 0] = row_idx
+        out[left:right, 1] = col_idxs
+        left = right
+    return out
+
+def sparse_column_with_row_to_multi_indices(row_indices, col_indices_lst):
+    assert len(row_indices) == len(col_indices_lst)
+    num_indices = sum([len(col_idxs) for col_idxs in col_indices_lst])
+    out = np.zeros((num_indices, 2), dtype='int64')
+    left = 0
+    for idx in enumerate(col_indices_lst):
+        col_idxs = col_indices_lst[idx]
+        right = left + len(col_idxs)
+        out[left:right, 0] = row_indices[idx]
+        out[left:right, 1] = col_idxs
+        left = right
+    return out
 
 def sorting_indices(x, decreasing):
     assert len(x.shape) == 2
