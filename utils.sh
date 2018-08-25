@@ -35,6 +35,7 @@ ut_send_mail_message_with_subject_and_attachment_to_address() { echo "$1" | mail
 ut_sleep_in_seconds() { sleep "$1s"; }
 ut_run_every_num_seconds() { watch -n "$2" "$1"; }
 
+ut_run_headless_command() { nohup $1; }
 ut_run_command_on_server() { ssh "$2" -t "$1"; }
 ut_run_command_on_server_on_folder() { ssh "$2" -t "cd \"$3\" && $1"; }
 ut_run_bash_on_server_on_folder() { ssh "$1" -t "cd \"$2\" && bash"; }

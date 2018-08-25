@@ -29,6 +29,38 @@ def index_tokens(tokens, start_index=0):
     token_to_index = dict(zip(tokens, range(start_index, num_tokens + start_index)))
     return token_to_index
 
+def index_with_special_tokens(tokens,
+    with_pad=True, with_bos=True, with_eos=True, with_unk=True, with_overflow=True,
+    pad_token="_PAD_", bos_token="_BOS_", eos_token="_EOS_",
+    unk_token="_UNK_", overflow_token="_OVERFLOW_"):
+
+    num_normal_tokens = len(tokens)
+    num_special_tokens = sum([with_pad, with_bos, with_eos, with_unk, with_overflow])
+    token_to_index = dict(zip(tokens, range(num_special_tokens, num_normal_tokens + num_special_tokens)))
+
+    idx = 0
+    if with_pad:
+        assert pad_token not in token_to_index
+        token_to_index[pad_token] = idx
+        idx += 1
+    if with_bos:
+        assert bos_token not in token_to_index
+        token_to_index[bos_token] = idx
+        idx += 1
+    if with_eos:
+        assert eos_token not in token_to_index
+        token_to_index[eos_token] = idx
+        idx += 1
+    if with_unk:
+        assert unk_token not in token_to_index
+        token_to_index[unk_token] = idx
+        idx += 1
+    if with_overflow:
+        assert overflow_token not in token_to_index
+        token_to_index[overflow_token] = idx
+        idx += 1
+    return token_to_index
+
 def tokenize(sequence, token_to_index, target_length,
         unk_token='_UNK_', bos_token="_BOS_", eos_token="_EOS_",
         pad_token="_PAD_", overflow_token="_OVERFLOW_",
