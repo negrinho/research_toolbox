@@ -1,5 +1,5 @@
 import keras
-from keras.layers import Input, Embedding, LSTM, Bidirectional
+from keras.layers import Input, Embedding, LSTM, Bidirectional, Reshape, Lambda
 import keras.backend as K
 
 def get_shape(x):
@@ -20,8 +20,18 @@ def create_float_tensor_input(shape):
 def create_int_tensor_input(shape):
     return Input(shape=shape, dtype='int32')
 
-def create_basic_sequence_model(input, vocab_size,
-        embedding_dim, output_dim, bidirectional, return_sequences,
+def reshape_with_batch_dimension(x, output_shape):
+    return Lambda(lambda y: K.reshape(y, output_shape))(x)
+
+def reshape_without_batch_dimension(x, output_shape):
+    return Reshape(output_shape)(x)
+
+def flatten_all_but_last_dimension(x):
+    shape = get_shape(x)
+    return reshape_with_batch_dimension(x, (-1, shape[-1]))
+
+def create_basic_sequence_model(input, sequence_length, vocab_size,
+        embedding_dim, output_dim, return_sequences, bidirectional=True,
         embeddings=None, initial_embeddings=None, trainable_embeddings=True,
         lstm=None):
     assert embeddings is None or initial_embeddings is None
@@ -35,22 +45,27 @@ def create_basic_sequence_model(input, vocab_size,
                 trainable=trainable_embeddings)
 
     if lstm is None:
-        if bidirectional:
-            units = int(output_dim / 2)
-        else:
-            units = output_dim
-
+        units = int(output_dim / 2) if bidirectional else output_dim
         lstm = LSTM(units, return_sequences=return_sequences)
         if bidirectional:
             lstm = Bidirectional(lstm)
 
     # creation of the computational graph.
-    x = embeddings(input)
-    x = lstm(x)
+    emb_sequence = embeddings(input)
+    output = lstm(emb_sequence)
 
     return {
-        "embeddings" : embeddings,
-        "lstm" : lstm,
-        "input" : input,
-        "output" : x
+        "model" : {
+            "embeddings" : embeddings,
+            "lstm" : lstm,
+        },
+        "nodes" : {
+            "input" : input,
+            "embedded_sequence" : emb_sequence,
+            "output" : output
+        }
     }
+
+### useful links
+# - functional API: https://keras.io/getting-started/functional-api-guide/
+# - multiple outputs and multiplee losses: https://www.pyimagesearch.com/2018/06/04/keras-multiple-outputs-and-multiple-losses/
