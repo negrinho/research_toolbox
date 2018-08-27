@@ -2,6 +2,7 @@ import numpy as np
 import os
 import cPickle
 import research_toolbox.tb_augmentation as tb_au
+import research_toolbox.tb_io as tb_io
 from tensorflow.examples.tutorials.mnist import input_data
 
 def load_mnist(data_folderpath, flatten=False, one_hot=True, normalize_range=False,
@@ -113,6 +114,23 @@ def load_cifar100(data_folderpath, num_val, flatten=False, one_hot=True, normali
     Xval, yval = Xtrain[-num_val:], ytrain[-num_val:]
     return (Xtrain, ytrain, Xval, yval, Xtest, ytest)
 
+def load_glove(filepath):
+    lines = tb_io.read_textfile(filepath)
+    num_embs = len(lines)
+
+    d = len(lines[0].split(' ')) - 1
+    words = []
+    embs = np.zeros((num_embs, d))
+    for i, x in enumerate(lines):
+        y = x.split(' ')
+        w = y[0]
+        e = np.array(y[1:], dtype='float32')
+
+        embs[i, :] = e
+        words.append(w)
+
+    return words, embs
+
 def fake_labels(num_elems, num_classes):
     return np.random.randint(num_classes, size=(num_elems,))
 
@@ -130,3 +148,6 @@ def fake_videos(num_videos, num_frames, height, width, num_channels):
 
 def fake_tensors(num_tensors, shape):
     return np.random.normal(size=(num_tensors, ) + shape)
+
+def fake_masks(num_masks, num_elems):
+    return (fake_tensors(num_masks, (num_elems,)) > 0.0).astype('float32')

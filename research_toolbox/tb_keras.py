@@ -1,5 +1,6 @@
 import keras
 from keras.layers import Input, Embedding, LSTM, Bidirectional, Reshape, Lambda
+from keras.layers import concatenate
 import keras.backend as K
 
 def get_shape(x):
@@ -29,6 +30,13 @@ def reshape_without_batch_dimension(x, output_shape):
 def flatten_all_but_last_dimension(x):
     shape = get_shape(x)
     return reshape_with_batch_dimension(x, (-1, shape[-1]))
+
+def concatenate_along_last_axis(lst):
+    assert len(lst) > 0
+    if len(lst) > 2:
+        return concatenate(lst)
+    else:
+        return lst[0]
 
 def create_basic_sequence_model(input, sequence_length, vocab_size,
         embedding_dim, output_dim, return_sequences, bidirectional=True,
