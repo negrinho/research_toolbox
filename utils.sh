@@ -10,6 +10,7 @@ ut_up3() { cd ../../..; }
 ut_get_last_process_id() { echo "$!"; }
 ut_get_last_process_exit_code() { echo "$?"; }
 ut_wait_on_process_id() { wait "$1"; }
+ut_random_uuid() { python -c "import uuid; print(uuid.uuid4())"; }
 
 ut_get_containing_folderpath() { echo "$(dirname "$1")"; }
 ut_get_filename_from_filepath() { echo "$(basename "$1")"; }
