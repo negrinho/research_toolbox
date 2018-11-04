@@ -184,3 +184,16 @@ def fake_tensors(num_tensors, shape):
 
 def fake_masks(num_masks, num_elems):
     return (fake_tensors(num_masks, (num_elems,)) > 0.0).astype('float32')
+
+
+def partition_data(lst, fraction_lst):
+    assert sum(fraction_lst) < 1.0
+    start = 0
+    num_total = len(lst)
+    lst_lst = []
+    for f in fraction_lst:
+        n = int(f * num_total)
+        lst_lst.append(lst[start:start + n])
+        start += n
+    lst_lst.append(lst[start:])
+    return lst_lst
