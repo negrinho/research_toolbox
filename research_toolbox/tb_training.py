@@ -4,8 +4,10 @@ import research_toolbox.tb_io as tb_io
 import research_toolbox.tb_filesystem as tb_fs
 import research_toolbox.tb_utils as tb_ut
 
+
 ### for storing the data
 class InMemoryDataset:
+
     def __init__(self, X, y, shuffle_at_epoch_begin, batch_transform_fn=None):
         if X.shape[0] != y.shape[0]:
             assert ValueError("X and y the same number of examples.")
@@ -41,11 +43,18 @@ class InMemoryDataset:
 
         return (X_batch_out, y_batch_out)
 
+
 class PatienceRateSchedule:
-    def __init__(self, rate_init, rate_mult, rate_patience,
-            rate_max=np.inf, rate_min=-np.inf, minimizing=True):
+
+    def __init__(self,
+                 rate_init,
+                 rate_mult,
+                 rate_patience,
+                 rate_max=np.inf,
+                 rate_min=-np.inf,
+                 minimizing=True):
         assert (rate_patience > 0 and (rate_mult > 0.0 and rate_mult <= 1.0) and
-            rate_min > 0.0 and rate_max >= rate_min)
+                rate_min > 0.0 and rate_max >= rate_min)
 
         self.rate_init = rate_init
         self.rate_mult = rate_mult
@@ -62,22 +71,26 @@ class PatienceRateSchedule:
     def update(self, v):
         # if it improved, reset counter.
         if (self.minimizing and v < self.prev_value) or (
-                (not self.minimizing) and v > self.prev_value) :
+            (not self.minimizing) and v > self.prev_value):
             self.counter = self.rate_patience
         else:
             self.counter -= 1
             if self.counter == 0:
                 self.cur_rate *= self.rate_mult
                 # rate truncation
-                self.cur_rate = min(max(self.rate_min, self.cur_rate), self.rate_max)
+                self.cur_rate = min(
+                    max(self.rate_min, self.cur_rate), self.rate_max)
                 self.counter = self.rate_patience
 
-        self.prev_value = min(v, self.prev_value) if self.minimizing else max(v, self.prev_value)
+        self.prev_value = min(v, self.prev_value) if self.minimizing else max(
+            v, self.prev_value)
 
     def get_rate(self):
         return self.cur_rate
 
+
 class AdditiveRateSchedule:
+
     def __init__(self, rate_init, rate_end, duration):
         assert rate_init > 0 and rate_end > 0 and duration > 0
 
@@ -96,7 +109,9 @@ class AdditiveRateSchedule:
     def get_rate(self):
         return self.cur_rate
 
+
 class MultiplicativeRateSchedule:
+
     def __init__(self, rate_init, rate_mult):
         assert rate_init > 0 and rate_mult > 0
 
@@ -110,7 +125,9 @@ class MultiplicativeRateSchedule:
     def get_rate(self):
         return self.cur_rate
 
+
 class ConstantRateSchedule:
+
     def __init__(self, rate):
         self.rate = rate
 
@@ -120,13 +137,14 @@ class ConstantRateSchedule:
     def get_rate(self):
         return self.rate
 
+
 class StepwiseRateSchedule:
+
     def __init__(self, rates, durations):
         assert len(rates) == len(durations)
 
         self.schedule = PiecewiseSchedule(
-            [ConstantRateSchedule(r) for r in rates],
-            durations)
+            [ConstantRateSchedule(r) for r in rates], durations)
 
     def update(self, v):
         self.schedule.update(v)
@@ -134,10 +152,12 @@ class StepwiseRateSchedule:
     def get_rate(self):
         return self.schedule.get_rate()
 
+
 class PiecewiseSchedule:
+
     def __init__(self, schedules, durations):
-        assert len(schedules) > 0 and len(schedules) == len(durations) and (
-            all([d > 0 for d in durations]))
+        assert len(schedules) > 0 and len(schedules) == len(durations) and (all(
+            [d > 0 for d in durations]))
 
         self.schedules = schedules
         self.durations = durations
@@ -160,7 +180,9 @@ class PiecewiseSchedule:
     def get_rate(self):
         return self.schedules[self.idx].get_rate()
 
+
 class CosineRateSchedule:
+
     def __init__(self, rate_start, rate_end, duration):
         assert duration > 0
 
@@ -177,8 +199,14 @@ class CosineRateSchedule:
         return self.rate_end + 0.5 * (self.rate_start - self.rate_end) * (
             1 + np.cos(float(self.num_steps) / self.duration * np.pi))
 
+
 class PatienceCounter:
-    def __init__(self, patience, init_val=None, minimizing=True, improv_thres=0.0):
+
+    def __init__(self,
+                 patience,
+                 init_val=None,
+                 minimizing=True,
+                 improv_thres=0.0):
         assert patience > 0
 
         self.minimizing = minimizing
@@ -213,14 +241,21 @@ class PatienceCounter:
     def has_stopped(self):
         return self.counter == 0
 
-def get_random_step_schedule(min_rate_power, max_rate_power,
-        min_duration_power, max_duration_power, num_switch_points,
-        ensure_decreasing_rate=False, ensure_increasing_rate=False,
-        ensure_decreasing_duration=False, ensure_increasing_duration=False,
-        is_int_type=False):
+
+def get_random_step_schedule(min_rate_power,
+                             max_rate_power,
+                             min_duration_power,
+                             max_duration_power,
+                             num_switch_points,
+                             ensure_decreasing_rate=False,
+                             ensure_increasing_rate=False,
+                             ensure_decreasing_duration=False,
+                             ensure_increasing_duration=False,
+                             is_int_type=False):
     assert min_duration_power >= 0
 
-    def sample(possible_values, num_samples, ensure_decreasing, ensure_increasing):
+    def sample(possible_values, num_samples, ensure_decreasing,
+               ensure_increasing):
         assert not (ensure_decreasing and ensure_increasing)
 
         if ensure_decreasing:
@@ -237,15 +272,18 @@ def get_random_step_schedule(min_rate_power, max_rate_power,
             values = np.random.choice(possible_values, num_switch_points)
         return values
 
-    possible_rates = tb_ut.powers_of_two(min_rate_power, max_rate_power, is_int_type=is_int_type)
-    rates = sample(possible_rates, num_switch_points,
-        ensure_decreasing_rate, ensure_increasing_rate)
+    possible_rates = tb_ut.powers_of_two(
+        min_rate_power, max_rate_power, is_int_type=is_int_type)
+    rates = sample(possible_rates, num_switch_points, ensure_decreasing_rate,
+                   ensure_increasing_rate)
 
-    possible_durations = tb_ut.powers_of_two(min_duration_power, max_duration_power, is_int_type=True)
+    possible_durations = tb_ut.powers_of_two(
+        min_duration_power, max_duration_power, is_int_type=True)
     durations = sample(possible_durations, num_switch_points,
-        ensure_decreasing_duration, ensure_increasing_duration)
+                       ensure_decreasing_duration, ensure_increasing_duration)
 
     return StepwiseRateSchedule(rates, durations), rates, durations
+
 
 # NOTE: actually, state_dict needs a copy.
 # example
@@ -254,6 +292,7 @@ def get_random_step_schedule(min_rate_power, max_rate_power,
 # load_fn = lambda x: x,
 # for example, but it allows more complex functionality.
 class Checkpoint:
+
     def __init__(self, initial_state, cond_fn, save_fn, load_fn):
         self.state = initial_state
         self.cond_fn = cond_fn
@@ -267,6 +306,7 @@ class Checkpoint:
     def get(self):
         return self.load_fn(self.state)
 
+
 # TODO: perhaps can be improved to guarantee that all elements were saved
 # correctly, e.g., right now it can timeout and get back a corrupted file.
 # maintain versions with dates (most recent is best).
@@ -279,6 +319,7 @@ class Checkpoint:
 # models to it.
 # TODO: it is possible to add something to remove the whole folder in the end.
 class Saver:
+
     def __init__(self, saver_folderpath):
         self.saver_folderpath = saver_folderpath
         self.name_to_cfg = {}
@@ -293,9 +334,9 @@ class Saver:
     def register(self, name, save_fn, load_fn, use_json=False):
         assert name not in self.name_to_cfg
         self.name_to_cfg[name] = {
-            'save_fn' : save_fn,
-            'load_fn' : load_fn,
-            'use_json' : use_json,
+            'save_fn': save_fn,
+            'load_fn': load_fn,
+            'use_json': use_json,
         }
 
     def save(self, name, x):
@@ -334,6 +375,7 @@ class Saver:
     #     if delete_existing_checkpoint
     #         tb_fs.delete_file(filepath, abort_if_notexists=False)
 
+
 def get_best(eval_fns, minimize):
     best_i = None
     if minimize:
@@ -354,11 +396,14 @@ def get_best(eval_fns, minimize):
 
     return (best_i, best_v)
 
+
 # useful for structuring training code.
 def get_eval_fn(start_fn, train_fn, is_over_fn, end_fn):
+
     def eval_fn(d):
         start_fn(d)
         while not is_over_fn(d):
             train_fn(d)
         end_fn(d)
+
     return eval_fn

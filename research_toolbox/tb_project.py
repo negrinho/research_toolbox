@@ -2,6 +2,7 @@ import research_toolbox.tb_filesystem as tb_fs
 import research_toolbox.tb_io as tb_io
 import subprocess
 
+
 ### project manipulation
 def create_project_folder(folderpath, project_name, initialize_git_repo=False):
     fn = lambda xs: tb_fs.join_paths([folderpath, project_name] + xs)
@@ -38,23 +39,30 @@ def create_project_folder(folderpath, project_name, initialize_git_repo=False):
     tb_fs.create_file(fn(["notes", "todos.txt"]))
 
     # placeholders
-    tb_io.write_textfile(fn(["experiments", "readme.txt"]),
+    tb_io.write_textfile(
+        fn(["experiments", "readme.txt"]),
         ["All experiments will be placed under this folder."])
 
-    tb_io.write_textfile(fn(["temp", "readme.txt"]),
-        ["Here lie temporary files that are relevant or useful for the project "
-        "but that are not kept under version control."])
+    tb_io.write_textfile(
+        fn(["temp", "readme.txt"]), [
+            "Here lie temporary files that are relevant or useful for the project "
+            "but that are not kept under version control."
+        ])
 
-    tb_io.write_textfile(fn(["analyses", "readme.txt"]),
-        ["Here lie files containing information extracted from the "
-        "results of the experiments. Tables and plots are typical examples."])
+    tb_io.write_textfile(
+        fn(["analyses", "readme.txt"]), [
+            "Here lie files containing information extracted from the "
+            "results of the experiments. Tables and plots are typical examples."
+        ])
 
     # typical git ignore file.
-    tb_io.write_textfile(fn([".gitignore"]),
+    tb_io.write_textfile(
+        fn([".gitignore"]),
         ["data", "experiments", "temp", "*.pyc", "*.pdf", "*.aux"])
 
     if initialize_git_repo:
-        subprocess.call("cd %s && git init && git add -f .gitignore * && "
-            "git commit -a -m \"Initial commit for %s.\" && cd -" % (
-                fn([]), project_name), shell=True)
-
+        subprocess.call(
+            "cd %s && git init && git add -f .gitignore * && "
+            "git commit -a -m \"Initial commit for %s.\" && cd -" % (fn(
+                []), project_name),
+            shell=True)

@@ -9,6 +9,7 @@ import os
 import research_toolbox.tb_utils as tb_ut
 import research_toolbox.tb_resources as tb_rs
 
+
 def convert_between_time_units(x, src_units='seconds', dst_units='hours'):
     d = {}
     d['seconds'] = 1.0
@@ -21,10 +22,12 @@ def convert_between_time_units(x, src_units='seconds', dst_units='hours'):
     d['nanoseconds'] = d['seconds'] * 1e-9
     return (x * d[src_units]) / d[dst_units]
 
+
 def memory_process(pid, units='megabytes'):
     psutil_p = psutil.Process(pid)
     mem_p = psutil_p.memory_info()[0]
     return tb_rs.convert_between_byte_units(mem_p, dst_units=units)
+
 
 # TODO: do not just return a string representation, return the numbers.
 def now(omit_date=False, omit_time=False, time_before_date=False):
@@ -51,14 +54,17 @@ def now(omit_date=False, omit_time=False, time_before_date=False):
 
     return s
 
+
 def now_dict():
     x = datetime.datetime.now()
     return tb_ut.create_dict(
         ['year', 'month', 'day', 'hour', 'minute', 'second', 'microsecond'],
         [x.year, x.month, x.day, x.hour, x.minute, x.second, x.microsecond])
 
+
 ### logging
 class TimeTracker:
+
     def __init__(self):
         self.init_time = time.time()
         self.last_registered = self.init_time
@@ -76,7 +82,9 @@ class TimeTracker:
 
         return convert_between_time_units(elapsed, dst_units=units)
 
+
 class TimerManager:
+
     def __init__(self):
         self.init_time = time.time()
         self.last_registered = self.init_time
@@ -85,9 +93,15 @@ class TimerManager:
     def create_timer(self, timer_name, abort_if_timer_exists=True):
         assert not abort_if_timer_exists or timer_name not in self.name_to_timer
         start_time = time.time()
-        self.name_to_timer[timer_name] = {'start' : start_time, 'tick' : start_time}
+        self.name_to_timer[timer_name] = {
+            'start': start_time,
+            'tick': start_time
+        }
 
-    def create_timer_event(self, timer_name, event_name, abort_if_event_exists=True):
+    def create_timer_event(self,
+                           timer_name,
+                           event_name,
+                           abort_if_event_exists=True):
         assert not timer_name == 'tick'
         timer = self.name_to_timer[timer_name]
         assert not abort_if_event_exists or event_name not in timer
@@ -100,8 +114,11 @@ class TimerManager:
         delta = time.time() - self.name_to_timer[timer_name][event_name]
         return convert_between_time_units(delta, dst_units=units)
 
-    def get_time_between_events(self, timer_name,
-            earlier_event_name, later_event_name, units='seconds'):
+    def get_time_between_events(self,
+                                timer_name,
+                                earlier_event_name,
+                                later_event_name,
+                                units='seconds'):
         timer = self.name_to_timer[timer_name]
         delta = timer[earlier_event_name] - timer[later_event_name]
         assert delta >= 0.0
@@ -111,7 +128,9 @@ class TimerManager:
         delta = time.time() - self.name_to_timer[timer_name]['tick']
         return convert_between_time_units(delta, dst_units=units)
 
+
 class MemoryTracker:
+
     def __init__(self):
         self.last_registered = 0.0
         self.max_registered = 0.0
@@ -132,41 +151,50 @@ class MemoryTracker:
         return tb_rs.convert_between_byte_units(mem_dif, dst_units=units)
 
     def memory_max(self, units='megabytes'):
-        return tb_rs.convert_between_byte_units(self.max_registered, dst_units=units)
+        return tb_rs.convert_between_byte_units(
+            self.max_registered, dst_units=units)
+
 
 def print_time(timer, prefix_str='', units='seconds'):
-    print('%s%0.2f %s since start.' % (prefix_str,
-        timer.time_since_start(units=units), units))
-    print("%s%0.2f %s seconds since last call." % (prefix_str,
-        timer.time_since_last(units=units), units))
+    print('%s%0.2f %s since start.' %
+          (prefix_str, timer.time_since_start(units=units), units))
+    print("%s%0.2f %s seconds since last call." %
+          (prefix_str, timer.time_since_last(units=units), units))
+
 
 def print_memory(memer, prefix_str='', units='megabytes'):
-    print('%s%0.2f %s total.' % (prefix_str,
-        memer.memory_total(units=units), units.upper()))
-    print("%s%0.2f %s since last call." % (prefix_str,
-        memer.memory_since_last(units=units), units.upper()))
+    print('%s%0.2f %s total.' % (prefix_str, memer.memory_total(units=units),
+                                 units.upper()))
+    print("%s%0.2f %s since last call." %
+          (prefix_str, memer.memory_since_last(units=units), units.upper()))
 
-def print_memorytime(memer, timer, prefix_str='', mem_units='megabytes', time_units='seconds'):
+
+def print_memorytime(memer,
+                     timer,
+                     prefix_str='',
+                     mem_units='megabytes',
+                     time_units='seconds'):
     print_memory(memer, prefix_str, units=mem_units)
     print_time(timer, prefix_str, units=time_units)
 
-def print_oneliner_memorytime(memer, timer, prefix_str='',
-        mem_units='megabytes', time_units='seconds'):
 
-    print('%s (%0.2f %s last; %0.2f %s total; %0.2f %s last; %0.2f %s total)'
-                 % (prefix_str,
-                    timer.time_since_last(units=time_units),
-                    time_units,
-                    timer.time_since_start(units=time_units),
-                    time_units,
-                    memer.memory_since_last(units=mem_units),
-                    mem_units.upper(),
-                    memer.memory_total(units=mem_units),
-                    mem_units.upper()))
+def print_oneliner_memorytime(memer,
+                              timer,
+                              prefix_str='',
+                              mem_units='megabytes',
+                              time_units='seconds'):
+
+    print('%s (%0.2f %s last; %0.2f %s total; %0.2f %s last; %0.2f %s total)' %
+          (prefix_str, timer.time_since_last(units=time_units), time_units,
+           timer.time_since_start(units=time_units), time_units,
+           memer.memory_since_last(units=mem_units), mem_units.upper(),
+           memer.memory_total(units=mem_units), mem_units.upper()))
+
 
 class Logger:
-    def __init__(self, filepath,
-        append_to_file=False, capture_all_output=False):
+
+    def __init__(self, filepath, append_to_file=False,
+                 capture_all_output=False):
         mode = 'a' if append_to_file else 'w'
         self.f = open(filepath, mode)
         if capture_all_output:
@@ -184,6 +212,7 @@ class Logger:
 
         self.f.write(s + '\n')
 
+
 # check if files are flushed automatically upon termination, or there is
 # something else that needs to be done. or maybe have a flush flag or something.
 def capture_output(f, capture_stdout=True, capture_stderr=True):
@@ -192,6 +221,7 @@ def capture_output(f, capture_stdout=True, capture_stderr=True):
         sys.stdout = f
     if capture_stderr:
         sys.stderr = f
+
 
 def node_information():
     return platform.node()

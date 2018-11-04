@@ -13,28 +13,42 @@ import research_toolbox.tb_logging as tb_lg
 import research_toolbox.tb_utils as tb_ut
 import research_toolbox.tb_random as tb_ra
 
+
 class CommandLineArgs:
+
     def __init__(self, argname_prefix=''):
         self.parser = argparse.ArgumentParser()
         self.argname_prefix = argname_prefix
 
-    def add(self, argname, argtype, default_value=None, optional=False, help=None,
-            valid_value_lst=None, list_valued=False):
-        valid_types = {'int' : int, 'str' : str, 'float' : float}
+    def add(self,
+            argname,
+            argtype,
+            default_value=None,
+            optional=False,
+            help=None,
+            valid_value_lst=None,
+            list_valued=False):
+        valid_types = {'int': int, 'str': str, 'float': float}
         assert argtype in valid_types
 
         nargs = None if not list_valued else '*'
         argtype = valid_types[argtype]
 
-        self.parser.add_argument('--' + self.argname_prefix + argname,
-            required=not optional, default=default_value, nargs=nargs,
-            type=argtype, choices=valid_value_lst, help=help)
+        self.parser.add_argument(
+            '--' + self.argname_prefix + argname,
+            required=not optional,
+            default=default_value,
+            nargs=nargs,
+            type=argtype,
+            choices=valid_value_lst,
+            help=help)
 
     def parse(self):
         return vars(self.parser.parse_args())
 
     def get_parser(self):
         return self.parser
+
 
 def get_available_filename(folderpath, filename_prefix):
     idx = 0
@@ -47,6 +61,7 @@ def get_available_filename(folderpath, filename_prefix):
             idx += 1
     return name
 
+
 def get_config():
     cmd = CommandLineArgs()
     cmd.add('config_filepath', 'str')
@@ -54,10 +69,13 @@ def get_config():
     cfg = tb_io.read_jsonfile(out['config_filepath'])
     return cfg
 
+
 # generating the call lines for a call to main.
 def generate_call_lines(main_filepath,
-        argname_lst, argvalue_lst,
-        output_filepath=None, profile_filepath=None):
+                        argname_lst,
+                        argvalue_lst,
+                        output_filepath=None,
+                        profile_filepath=None):
 
     sc_lines = ['export PYTHONPATH=".:$PYTHONPATH" && python -u \\']
     # add the profiling instruction.
@@ -65,32 +83,41 @@ def generate_call_lines(main_filepath,
         sc_lines += ['-m cProfile -o %s \\' % profile_filepath]
     sc_lines += ['%s \\' % main_filepath]
     # arguments for the call
-    sc_lines += ['    --%s %s \\' % (k, v)
-        for k, v in itertools.izip(argname_lst[:-1], argvalue_lst[:-1])]
+    sc_lines += [
+        '    --%s %s \\' % (k, v)
+        for k, v in itertools.izip(argname_lst[:-1], argvalue_lst[:-1])
+    ]
     # add the output redirection.
     if output_filepath is not None:
-        sc_lines += ['    --%s %s \\' % (argname_lst[-1], argvalue_lst[-1]),
-                    '    > %s 2>&1' % (output_filepath)]
+        sc_lines += [
+            '    --%s %s \\' % (argname_lst[-1], argvalue_lst[-1]),
+            '    > %s 2>&1' % (output_filepath)
+        ]
     else:
         sc_lines += ['    --%s %s' % (argname_lst[-1], argvalue_lst[-1])]
     return sc_lines
 
-# all paths are relative to the current working directory or to entry folder path.
-def create_run_script(main_filepath,
-        argname_lst, argvalue_lst, script_filepath,
-        # entry_folderpath=None,
-        output_filepath=None, profile_filepath=None):
 
-    sc_lines = [
-        '#!/bin/bash',
-        'set -e']
+# all paths are relative to the current working directory or to entry folder path.
+def create_run_script(
+        main_filepath,
+        argname_lst,
+        argvalue_lst,
+        script_filepath,
+        # entry_folderpath=None,
+        output_filepath=None,
+        profile_filepath=None):
+
+    sc_lines = ['#!/bin/bash', 'set -e']
     # # change into the entry folder if provided.
     # if entry_folderpath is not None:
     #     sc_lines += ['cd %s' % entry_folderpath]
     # call the main function.
-    sc_lines += generate_call_lines(**tb_ut.subset_dict_via_selection(locals(),
-        ['main_filepath', 'argname_lst', 'argvalue_lst',
-        'output_filepath', 'profile_filepath']))
+    sc_lines += generate_call_lines(
+        **tb_ut.subset_dict_via_selection(locals(), [
+            'main_filepath', 'argname_lst', 'argvalue_lst', 'output_filepath',
+            'profile_filepath'
+        ]))
     # change back to the previous folder if I change to some other folder.
     # if entry_folderpath is not None:
     #     sc_lines += ['cd -']
@@ -100,15 +127,20 @@ def create_run_script(main_filepath,
     exec_bits = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
     os.chmod(script_filepath, st.st_mode | exec_bits)
 
+
 # NOTE: can be done more concisely with a for loop.
 def create_runall_script(experiment_folderpath):
-    fo_names = tb_fs.list_folders(experiment_folderpath, recursive=False, use_relative_paths=True)
-    num_exps = len([n for n in fo_names if tb_fs.path_last_element(n).startswith('cfg')])
+    fo_names = tb_fs.list_folders(
+        experiment_folderpath, recursive=False, use_relative_paths=True)
+    num_exps = len(
+        [n for n in fo_names if tb_fs.path_last_element(n).startswith('cfg')])
 
     # creating the script.
     sc_lines = ['#!/bin/bash']
-    sc_lines += [tb_fs.join_paths([experiment_folderpath, "cfg%d" % i, 'run.sh'])
-        for i in xrange(num_exps)]
+    sc_lines += [
+        tb_fs.join_paths([experiment_folderpath,
+                          "cfg%d" % i, 'run.sh']) for i in xrange(num_exps)
+    ]
 
     # creating the run all script.
     out_filepath = tb_fs.join_paths([experiment_folderpath, 'run.sh'])
@@ -116,82 +148,72 @@ def create_runall_script(experiment_folderpath):
     st = os.stat(out_filepath)
     exec_bits = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
     os.chmod(out_filepath, st.st_mode | exec_bits)
+
 
 # NOTE: for now, this relies on the fact that upon completion of an experiment
 # a results.json file, i.e., the existence of this file is used to determine
 # if the folder related to this experiment has been run or not.
 def create_runall_script_with_parallelization(experiment_folderpath):
-    fo_names = tb_fs.list_folders(experiment_folderpath, recursive=False, use_relative_paths=True)
-    num_exps = len([n for n in fo_names if tb_fs.path_last_element(n).startswith('cfg')])
+    fo_names = tb_fs.list_folders(
+        experiment_folderpath, recursive=False, use_relative_paths=True)
+    num_exps = len(
+        [n for n in fo_names if tb_fs.path_last_element(n).startswith('cfg')])
 
     # creating the script.
     sc_lines = [
-        '#!/bin/bash',
-        'if [ "$#" -lt 0 ] && [ "$#" -gt 3 ]; then',
+        '#!/bin/bash', 'if [ "$#" -lt 0 ] && [ "$#" -gt 3 ]; then',
         '    echo "Usage: run.sh [worker_id num_workers] [--force-rerun]"',
-        '    exit 1',
-        'fi',
-        'force_rerun=0',
-        'if [ $# -eq 0 ] || [ $# -eq 1 ]; then',
-        '    worker_id=0',
-        '    num_workers=1',
-        '    if [ $# -eq 1 ]; then',
+        '    exit 1', 'fi', 'force_rerun=0',
+        'if [ $# -eq 0 ] || [ $# -eq 1 ]; then', '    worker_id=0',
+        '    num_workers=1', '    if [ $# -eq 1 ]; then',
         '        if [ "$1" != "--force-rerun" ]; then',
         '            echo "Usage: run.sh [worker_id num_workers] [--force-rerun]"',
-        '            exit 1',
-        '        else',
-        '            force_rerun=1',
-        '        fi',
-        '    fi',
-        'else',
-        '    worker_id=$1',
-        '    num_workers=$2',
-        '    if [ $# -eq 3 ]; then',
+        '            exit 1', '        else', '            force_rerun=1',
+        '        fi', '    fi', 'else', '    worker_id=$1',
+        '    num_workers=$2', '    if [ $# -eq 3 ]; then',
         '        if [ "$3" != "--force-rerun" ]; then',
         '            echo "Usage: run.sh [worker_id num_workers] [--force-rerun]"',
-        '            exit 1',
-        '        else',
-        '            force_rerun=1',
-        '        fi',
-        '    fi',
-        'fi',
+        '            exit 1', '        else', '            force_rerun=1',
+        '        fi', '    fi', 'fi',
         'if [ $num_workers -le $worker_id ] || [ $worker_id -lt 0 ]; then',
         '    echo "Invalid call: requires 0 <= worker_id < num_workers."',
-        '    exit 1',
-        'fi'
+        '    exit 1', 'fi'
         '',
-        'num_exps=%d' % num_exps,
-        'i=0',
-        'while [ $i -lt $num_exps ]; do',
+        'num_exps=%d' % num_exps, 'i=0', 'while [ $i -lt $num_exps ]; do',
         '    if [ $(($i % $num_workers)) -eq $worker_id ]; then',
-        '        if [ ! -f %s ] || [ $force_rerun -eq 1 ]; then' % tb_fs.join_paths(
-                    [experiment_folderpath, "cfg$i", 'results.json']),
+        '        if [ ! -f %s ] || [ $force_rerun -eq 1 ]; then' %
+        tb_fs.join_paths([experiment_folderpath, "cfg$i", 'results.json']),
         '            echo cfg$i',
-        '            %s' % tb_fs.join_paths([experiment_folderpath, "cfg$i", 'run.sh']),
-        '        fi',
-        '    fi',
-        '    i=$(($i + 1))',
-        'done'
-   ]
+        '            %s' % tb_fs.join_paths(
+            [experiment_folderpath, "cfg$i", 'run.sh']), '        fi', '    fi',
+        '    i=$(($i + 1))', 'done'
+    ]
     # creating the run all script.
     out_filepath = tb_fs.join_paths([experiment_folderpath, 'run.sh'])
     tb_io.write_textfile(out_filepath, sc_lines, with_newline=True)
     st = os.stat(out_filepath)
     exec_bits = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
     os.chmod(out_filepath, st.st_mode | exec_bits)
+
 
 # NOTE: not the perfect way of doing things, but it is a reasonable way for now.
 # main_relfilepath is relative to the project folder path.
 # entry_folderpath is the place it changes to before executing.
 # if code and data folderpaths are provided, they are copied to the exp folder.
 # all paths are relative I think that that is what makes most sense.
-def create_experiment_folder(main_filepath,
-        argname_lst, argval_lst_lst, output_folderpath_argname,
-        all_experiments_folderpath, readme, experiment_name=None,
+def create_experiment_folder(
+        main_filepath,
+        argname_lst,
+        argval_lst_lst,
+        output_folderpath_argname,
+        all_experiments_folderpath,
+        readme,
+        experiment_name=None,
         # entry_folderpath=None,
         code_folderpath=None,
         # data_folderpath=None,
-        capture_output=False, profile_run=False):
+        capture_output=False,
+        profile_run=False):
 
     assert tb_fs.folder_exists(all_experiments_folderpath)
     assert experiment_name is None or (not tb_fs.path_exists(
@@ -201,8 +223,10 @@ def create_experiment_folder(main_filepath,
 
     # create the main folder where things for the experiment will be.
     if experiment_name is None:
-        experiment_name = get_available_filename(all_experiments_folderpath, "exp")
-    experiment_folderpath = tb_fs.join_paths([all_experiments_folderpath, experiment_name])
+        experiment_name = get_available_filename(all_experiments_folderpath,
+                                                 "exp")
+    experiment_folderpath = tb_fs.join_paths(
+        [all_experiments_folderpath, experiment_name])
     tb_fs.create_folder(experiment_folderpath)
 
     # copy the code to the experiment folder.
@@ -210,15 +234,18 @@ def create_experiment_folder(main_filepath,
         code_foldername = tb_fs.path_last_element(code_folderpath)
         dst_code_fo = tb_fs.join_paths([experiment_folderpath, code_foldername])
 
-        tb_fs.copy_folder(code_folderpath, dst_code_fo,
-            ignore_hidden_files=True, ignore_hidden_folders=True,
+        tb_fs.copy_folder(
+            code_folderpath,
+            dst_code_fo,
+            ignore_hidden_files=True,
+            ignore_hidden_folders=True,
             ignore_file_exts=['.pyc'])
 
         # change main_filepath to use that new code.
         main_filepath = tb_fs.join_paths([experiment_folderpath, main_filepath])
 
     # NOTE: no data copying for now because it often does not make much sense.
-    data_folderpath = None ### TODO: remove later.
+    data_folderpath = None  ### TODO: remove later.
     # # copy the code to the experiment folder.
     # if data_folderpath is not None:
     #     data_foldername = path_last_element(data_folderpath)
@@ -230,12 +257,11 @@ def create_experiment_folder(main_filepath,
     # write the config for the experiment.
     tb_io.write_jsonfile(
         tb_ut.subset_dict_via_selection(locals(), [
-        'main_filepath',
-        'argname_lst', 'argval_lst_lst', 'output_folderpath_argname',
-        'all_experiments_folderpath', 'readme', 'experiment_name',
-        'code_folderpath', 'data_folderpath',
-        'capture_output', 'profile_run']),
-        tb_fs.join_paths([experiment_folderpath, 'config.json']))
+            'main_filepath', 'argname_lst', 'argval_lst_lst',
+            'output_folderpath_argname', 'all_experiments_folderpath', 'readme',
+            'experiment_name', 'code_folderpath', 'data_folderpath',
+            'capture_output', 'profile_run'
+        ]), tb_fs.join_paths([experiment_folderpath, 'config.json']))
 
     # generate the executables for each configuration.
     argname_lst = list(argname_lst)
@@ -247,10 +273,11 @@ def create_experiment_folder(main_filepath,
         # create the script
         argvalue_lst = list(vs)
         argvalue_lst.append(cfg_folderpath)
-        call_args = tb_ut.subset_dict_via_selection(locals(),
-            ['argname_lst', 'argvalue_lst', 'main_filepath'])
+        call_args = tb_ut.subset_dict_via_selection(
+            locals(), ['argname_lst', 'argvalue_lst', 'main_filepath'])
 
-        call_args['script_filepath'] = tb_fs.join_paths([cfg_folderpath, 'run.sh'])
+        call_args['script_filepath'] = tb_fs.join_paths(
+            [cfg_folderpath, 'run.sh'])
         if capture_output:
             call_args['output_filepath'] = tb_fs.join_paths(
                 [cfg_folderpath, 'output.txt'])
@@ -268,10 +295,13 @@ def create_experiment_folder(main_filepath,
 
     return experiment_folderpath
 
+
 ### tools for processing the experiments folders once they have finished.
 def map_experiment_folder(experiment_folderpath, fn):
-    fo_paths = tb_fs.list_folders(experiment_folderpath, recursive=False, use_relative_paths=False)
-    num_exps = len([p for p in fo_paths if tb_fs.path_last_element(p).startswith('cfg')])
+    fo_paths = tb_fs.list_folders(
+        experiment_folderpath, recursive=False, use_relative_paths=False)
+    num_exps = len(
+        [p for p in fo_paths if tb_fs.path_last_element(p).startswith('cfg')])
 
     ps = []
     rs = []
@@ -281,8 +311,12 @@ def map_experiment_folder(experiment_folderpath, fn):
         ps.append(p)
     return (ps, rs)
 
-def load_experiment_folder(experiment_folderpath, json_filename_lst,
-    abort_if_notexists=True, only_load_if_all_exist=False):
+
+def load_experiment_folder(experiment_folderpath,
+                           json_filename_lst,
+                           abort_if_notexists=True,
+                           only_load_if_all_exist=False):
+
     def _fn(cfg_path):
         ds = []
         for name in json_filename_lst:
@@ -309,6 +343,7 @@ def load_experiment_folder(experiment_folderpath, json_filename_lst,
         (ps, rs) = (proc_ps, proc_rs)
 
     return (ps, rs)
+
 
 def generate_config_args(d, ortho=False):
     ks = d.keys()
@@ -348,8 +383,11 @@ def generate_config_args(d, ortho=False):
     # resorting the tuples according to sorting permutation.
     idxs = tb_ra.argsort(argname_lst, [lambda x: x])
     argname_lst = tb_ra.apply_permutation(argname_lst, idxs)
-    argval_lst_lst = [tb_ra.apply_permutation(vs, idxs) for vs in argval_lst_lst]
+    argval_lst_lst = [
+        tb_ra.apply_permutation(vs, idxs) for vs in argval_lst_lst
+    ]
     return (argname_lst, argval_lst_lst)
+
 
 # NOTE: this has been made a bit restrictive, but captures the main functionality
 # that it is required to generate the experiments.
@@ -374,10 +412,9 @@ def copy_regroup_config_generator(d_gen, d_update):
     proc_d = dict(d_gen)
     for (k, v) in d_update.iteritems():
         # check that the dimensions are consistent.
-        assert all([
-            ((not isinstance(vi, tuple)) and (not isinstance(vi, tuple))) or
-            len(vi) == len(k)
-                for vi in v])
+        assert all([((not isinstance(vi, tuple)) and
+                     (not isinstance(vi, tuple))) or len(vi) == len(k)
+                    for vi in v])
 
         if isinstance(k, tuple):
             # remove the original keys
@@ -388,9 +425,11 @@ def copy_regroup_config_generator(d_gen, d_update):
 
     return proc_d
 
+
 # TODO: perhaps fix the API with regards to kwargs for consistency with
 # other examples.
-def run_guarded_experiment(experiment_fn, maxmemory_mbs, maxtime_secs, **kwargs):
+def run_guarded_experiment(experiment_fn, maxmemory_mbs, maxtime_secs,
+                           **kwargs):
     start = time.time()
 
     p = multiprocessing.Process(target=experiment_fn, kwargs=kwargs)
@@ -410,6 +449,7 @@ def run_guarded_experiment(experiment_fn, maxmemory_mbs, maxtime_secs, **kwargs)
         except psutil.NoSuchProcess:
             pass
 
+
 def run_parallel_experiment(experiment_fn, iter_args):
     ps = []
     for args in iter_args:
@@ -420,7 +460,9 @@ def run_parallel_experiment(experiment_fn, iter_args):
     for p in ps:
         p.join()
 
+
 class ArgsDict:
+
     def __init__(self, filepath=None):
         self.d = {}
         if filepath != None:
@@ -440,7 +482,9 @@ class ArgsDict:
     def get_dict(self):
         return dict(self.d)
 
+
 class SummaryDict:
+
     def __init__(self, filepath=None, abort_if_different_lengths=False):
         self.abort_if_different_lengths = abort_if_different_lengths
         if filepath != None:
@@ -472,20 +516,24 @@ class SummaryDict:
     def get_dict(self):
         return dict(self.d)
 
+
 # perhaps also add a meta data json file per item stored.
 class MemoManager:
+
     def __init__(self, folderpath, create_if_notexists=False):
         self.folderpath = folderpath
         self.key_to_filename = {}
 
-        tb_fs.create_folder(folderpath,
+        tb_fs.create_folder(
+            folderpath,
             abort_if_exists=False,
             create_parent_folders=create_if_notexists)
 
         # initialize the memo based on the state of the folder.
         for fpath in tb_fs.list_files(folderpath):
             fname_with_ext = tb_fs.path_last_element(fpath)
-            if fname_with_ext.startswith('config-') and fname_with_ext.endswith('.json'):
+            if fname_with_ext.startswith('config-') and fname_with_ext.endswith(
+                    '.json'):
                 fname = fname_with_ext[len('config-'):-len('.json')]
                 config = tb_io.read_jsonfile(fpath)
                 key = self._key_from_config(config)
@@ -497,11 +545,16 @@ class MemoManager:
     def _get_unique_filename(self):
         while True:
             filename = uuid.uuid4()
-            if not tb_fs.file_exists(tb_fs.join_paths([self.folderpath, "config-%s.json" % filename])):
+            if not tb_fs.file_exists(
+                    tb_fs.join_paths(
+                        [self.folderpath,
+                         "config-%s.json" % filename])):
                 return filename
 
     def _get_filepath(self, filetype, filename, fileext):
-        return tb_fs.join_paths([self.folderpath, "%s-%s.%s" % (filetype, filename, fileext)])
+        return tb_fs.join_paths(
+            [self.folderpath,
+             "%s-%s.%s" % (filetype, filename, fileext)])
 
     def is_available(self, config):
         key = self._key_from_config(config)
@@ -548,6 +601,7 @@ class MemoManager:
     def get_configs(self):
         cfgs = []
         for filename in self.key_to_filename.itervalues():
-            d = tb_io.read_jsonfile(self._get_filepath('config', filename, 'json'))
+            d = tb_io.read_jsonfile(
+                self._get_filepath('config', filename, 'json'))
             cfgs.append(d)
         return cfgs

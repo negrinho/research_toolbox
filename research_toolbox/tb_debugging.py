@@ -1,6 +1,7 @@
 ### simple tools useful in implementing simple correctness checks.
 import itertools
 
+
 def test_overfit(ds, overfit_val, overfit_key):
     ov_ds = []
     err_ds = []
@@ -11,6 +12,7 @@ def test_overfit(ds, overfit_val, overfit_key):
             err_ds.append(d)
 
     return (ov_ds, err_ds)
+
 
 def test_with_fn(ds, fn):
     good_ds = []
@@ -23,6 +25,7 @@ def test_with_fn(ds, fn):
 
     return (good_ds, bad_ds)
 
+
 # assumes that eq_fn is transitive.
 def all_equivalent_with_fn(ds, eq_fn):
     for d1, d2 in itertools.izip(ds[:-1], ds[1:]):
@@ -30,11 +33,13 @@ def all_equivalent_with_fn(ds, eq_fn):
             return False
     return True
 
+
 def assert_length_consistency(xs_lst):
     assert len(set(map(len, xs_lst))) == 1
 
     for i in xrange(len(xs_lst)):
         assert set([len(xs[i]) for xs in xs_lst]) == 1
+
 
 def is_at_most_one_true(xs):
     assert all(type(x) == bool for x in xs)

@@ -3,41 +3,52 @@ import numpy as np
 import psutil
 import subprocess
 
+
 def cpus_total():
     return psutil.cpu_count()
+
 
 def cpus_free():
     frac_free = (1.0 - 0.01 * psutil.cpu_percent())
     return int(np.round(frac_free * psutil.cpu_count()))
 
+
 def convert_between_byte_units(x, src_units='bytes', dst_units='megabytes'):
     units = ['bytes', 'kilobytes', 'megabytes', 'gigabytes', 'terabytes']
     assert (src_units in units) and (dst_units in units)
-    return x / float(
-        2 ** (10 * (units.index(dst_units) - units.index(src_units))))
+    return x / float(2**
+                     (10 * (units.index(dst_units) - units.index(src_units))))
+
 
 def memory_total(units='megabytes'):
-    return convert_between_byte_units(psutil.virtual_memory().total, dst_units=units)
+    return convert_between_byte_units(
+        psutil.virtual_memory().total, dst_units=units)
+
 
 def memory_free(units='megabytes'):
-    return convert_between_byte_units(psutil.virtual_memory().available, dst_units=units)
+    return convert_between_byte_units(
+        psutil.virtual_memory().available, dst_units=units)
+
 
 def gpus_total():
     try:
-        n = len(subprocess.check_output(['nvidia-smi', '-L']).strip().split('\n'))
+        n = len(
+            subprocess.check_output(['nvidia-smi', '-L']).strip().split('\n'))
     except OSError:
         n = 0
     return n
 
+
 def gpus_free():
     return len(gpus_free_ids())
+
 
 def gpus_free_ids():
     try:
         out = subprocess.check_output([
-            'nvidia-smi',
-            '--query-gpu=utilization.gpu,memory.used',
-            '--format=csv,noheader'])
+            'nvidia-smi', '--query-gpu=utilization.gpu,memory.used',
+            '--format=csv,noheader'
+        ])
 
         ids = []
         gpu_ss = out.strip().split('\n')
@@ -56,8 +67,10 @@ def gpus_free_ids():
         ids = []
     return ids
 
+
 def gpus_set_visible(ids):
     n = gpus_total()
     assert all([i < n and i >= 0 for i in ids])
-    subprocess.call(['export', 'CUDA_VISIBLE_DEVICES=%s' % ",".join(map(str, ids))])
-
+    subprocess.call(
+        ['export',
+         'CUDA_VISIBLE_DEVICES=%s' % ",".join(map(str, ids))])
