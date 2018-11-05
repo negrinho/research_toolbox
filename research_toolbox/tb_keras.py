@@ -96,6 +96,23 @@ def create_basic_sequence_model(input,
     }
 
 
+# class DataGenerator(keras.utils.Sequence):
+
+#     def __init__(self):
+#         pass
+
+#     # number of batches
+#     def __len__(self):
+#         pass
+
+#     # get one batch of data: (X, y).
+#     def __getitem__(self, index):
+#         return (batch_X, batch_y)
+
+#     # for reshuffling indices after the end of the epoch.
+#     def on_epoch_end(self):
+#         pass
+
 ### useful links
 # - functional API: https://keras.io/getting-started/functional-api-guide/
 # - multiple outputs and multiplee losses: https://www.pyimagesearch.com/2018/06/04/keras-multiple-outputs-and-multiple-losses/
