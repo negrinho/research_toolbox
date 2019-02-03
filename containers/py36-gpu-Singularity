@@ -1,0 +1,16 @@
+Bootstrap: docker
+From: docker://ufoym/deepo:all-py36
+
+%post
+    PIP_INSTALL="python -m pip --no-cache-dir install --upgrade"
+    APT_INSTALL="apt-get install -y --no-install-recommends"
+    apt-get update
+    echo > /bin/nvidia-smi
+    ldconfig && \
+        apt-get clean && \
+        apt-get autoremove && \
+        rm -rf /var/lib/apt/lists/* /tmp/* ~/*
+
+%runscript
+    export PYTHONPATH=".:$PYTHONPATH" && exec python "$@"
+

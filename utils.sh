@@ -126,11 +126,23 @@ ut_cancel_job_on_bridges() { ut_run_command_on_bridges "scancel -n \"$1\""; }
 ut_cancel_all_my_jobs_on_bridges() { ut_run_command_on_bridges "scancel -u rpereira"; }
 
 # uses a deepo docker based image.
-# https://www.sylabs.io/guides/2.5.1/user-guide/
-ut_build_py27_cpu_singularity_container() { sudo singularity build --writable py27_cpu.img docker://ufoym/deepo:all-py27-cpu; }
-ut_build_py36_cpu_singularity_container() { sudo singularity build --writable py36_cpu.img docker://ufoym/deepo:all-py36-cpu; }
-ut_build_py27_gpu_singularity_container() { sudo singularity build --writable py27_gpu.img docker://ufoym/deepo:all-py27; }
-ut_build_py36_gpu_singularity_container() { sudo singularity build --writable py36_gpu.img docker://ufoym/deepo:all-py36; }
+ut_build_py27_cpu_singularity_container() { sudo singularity build --sandbox py27_cpu.img docker://ufoym/deepo:all-py27-cpu; }
+ut_build_py36_cpu_singularity_container() { sudo singularity build --sandbox py36_cpu.img docker://ufoym/deepo:all-py36-cpu; }
+ut_build_py27_gpu_singularity_container() { sudo singularity build --sandbox py27_gpu.img docker://ufoym/deepo:all-py27; }
+ut_build_py36_gpu_singularity_container() { sudo singularity build --sandbox py36_gpu.img docker://ufoym/deepo:all-py36; }
+
+ut_build_writable_singularity_container_from_recipe(){ sudo singularity build --sandbox "$1" "$2"; }
+ut_build_static_singularity_container_from_recipe(){ sudo singularity build "$1" "$2"; }
+ut_build_static_singularity_container_from_writable_singularity_container(){ sudo singularity build "$1" "$2"; }
+ut_bash_into_singularity_container(){ singularity shell "$1"; }
+ut_sudo_bash_into_singularity_container(){ sudo singularity shell --writable "$1"; }
+ut_run_command_in_singularity_container(){ singularity exec "$1" "$2"; }
+
+# NOTE: the bind command allows to expose directories in the host operating
+# system inside the container.
+# multiple paths can be bound by separating them with commas.
+# singularity shell --bind /path/to/dir/host0:/path/to/dir/container0,/path/to/dir/host1:/path/to/dir/container1 my_container.sif
+# See docs: https://www.sylabs.io/guides/3.0/user-guide/index.html
 
 ut_install_packages() {
     sudo apt-get install \
