@@ -134,9 +134,10 @@ ut_build_py36_gpu_singularity_container() { sudo singularity build --sandbox py3
 ut_build_writable_singularity_container_from_recipe(){ sudo singularity build --sandbox "$1" "$2"; }
 ut_build_static_singularity_container_from_recipe(){ sudo singularity build "$1" "$2"; }
 ut_build_static_singularity_container_from_writable_singularity_container(){ sudo singularity build "$1" "$2"; }
-ut_bash_into_singularity_container(){ singularity shell "$1"; }
-ut_sudo_bash_into_singularity_container(){ sudo singularity shell --writable "$1"; }
-ut_run_command_in_singularity_container(){ singularity exec "$1" "$2"; }
+# NOTE: using the --nv flag to check for nvidia binaries by default for simplicity.
+ut_bash_into_singularity_container(){ singularity shell --nv "$1"; }
+ut_sudo_bash_into_singularity_container(){ sudo singularity shell --nv --writable "$1"; }
+ut_run_command_in_singularity_container(){ singularity exec  --nv "$1" "$2"; }
 
 # NOTE: the bind command allows to expose directories in the host operating
 # system inside the container.
