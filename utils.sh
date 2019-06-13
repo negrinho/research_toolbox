@@ -85,8 +85,8 @@ ut_run_bash_on_matrix_on_folder() { ut_run_bash_on_server_on_folder matrix "$1";
 
 # https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html
 ut_create_conda_environment() { conda create --name "$1"; }
-ut_create_conda_py27_environment() { conda create --name "$1" py36 python=2.7 anaconda; }
-ut_create_conda_py36_environment() { conda create --name "$1" py36 python=3.6 anaconda; }
+ut_create_conda_py27_environment() { conda create --name "$1" python=2.7; }
+ut_create_conda_py36_environment() { conda create --name "$1" python=3.6; }
 ut_show_conda_environments() { conda info --envs; }
 ut_show_installed_conda_packages() { conda list; }
 ut_delete_conda_environment() { conda env remove --name "$1"; }
