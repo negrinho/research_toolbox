@@ -1,19 +1,17 @@
 import functools
 import inspect
 import pprint
-import pandas
 import itertools
 import numpy as np
 
 
 def powers_of_two(starting_power, ending_power, is_int_type=False):
     assert ending_power >= starting_power
-    return np.logspace(
-        starting_power,
-        ending_power,
-        num=ending_power - starting_power + 1,
-        base=2,
-        dtype='float64' if is_int_type is False else 'int64')
+    return np.logspace(starting_power,
+                       ending_power,
+                       num=ending_power - starting_power + 1,
+                       base=2,
+                       dtype='float64' if is_int_type is False else 'int64')
 
 
 ### auxiliary functions for avoiding boilerplate in in assignments
@@ -118,6 +116,7 @@ def create_dict(ks, vs):
 
 
 def create_dataframe(ds, abort_if_different_keys=True):
+    import pandas
     ks = key_union(ds)
     assert (not abort_if_different_keys) or len(key_intersection(ds)) == len(ks)
 

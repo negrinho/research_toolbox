@@ -55,6 +55,15 @@ ut_show_files_ever_tracked_by_git() { git log --pretty=format: --name-only --dif
 ut_show_files_currently_tracked_by_git_on_branch() { git ls-tree -r "$1" --name-only; }
 ut_discard_git_uncommited_changes_for_file() { git checkout -- "$1"; }
 ut_discard_all_git_uncommitted_changes() { git checkout -- .; }
+ut_delete_files_from_git_history(){
+    git filter-branch --prune-empty -d ./scratch_git_filter \
+  --index-filter "git rm -r --cached -f --ignore-unmatch $1" \
+  --tag-name-filter cat -- --all;
+  git reflog expire --expire=now --all;
+  git gc --prune=now;
+}
+
+
 
 ut_grep_history() { history | grep "$1"; }
 ut_show_known_hosts() { cat ~/.ssh/config; }
