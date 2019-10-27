@@ -324,6 +324,10 @@ def print_dict(d, width=1):
     pprint.pprint(d, width=width)
 
 
+def pprint_dict_keys(d, ks):
+    pprint.pprint({k: d[k] for k in ks})
+
+
 def collapse_nested_dict(d, sep='.'):
     assert all([type(k) == str for k in d.iterkeys()]) and (all([
         all([type(kk) == str for kk in d[k].iterkeys()]) for k in d.iterkeys()

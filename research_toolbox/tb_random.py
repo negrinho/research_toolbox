@@ -26,8 +26,9 @@ def argsort(xs, fns, increasing=True):
         return tuple([f(x) for f in fns])
 
     idxs, _ = tb_ut.zip_toggle(
-        sorted(
-            enumerate(xs), key=lambda x: key_fn(x[1]), reverse=not increasing))
+        sorted(enumerate(xs),
+               key=lambda x: key_fn(x[1]),
+               reverse=not increasing))
     return idxs
 
 
@@ -75,3 +76,18 @@ def uniform_sample_product(lst_lst_vals, num_samples):
     for i in xrange(num_samples):
         samples.append([components[j][i] for j in xrange(n)])
     return samples
+
+
+def uniformly_random_indices(num_indices, num_samples, with_replacement):
+    return np.random.choice(num_indices,
+                            num_samples,
+                            replace=with_replacement,
+                            p=probs)
+
+
+def random_indices_with_probs(num_indices, num_samples, with_replacement,
+                              probs):
+    return np.random.choice(num_indices,
+                            num_samples,
+                            replace=with_replacement,
+                            p=probs)
