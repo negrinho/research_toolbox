@@ -24,7 +24,7 @@ def increment_with_list(key2cnt, lst):
 
 
 def update_with_dict(key2cnt, from_key2count):
-    for key, cnt in from_key2count.iteritems():
+    for key, cnt in from_key2count.items():
         add(key2cnt, key, cnt)
     return key2cnt
 
@@ -38,20 +38,20 @@ def bottomk(key2cnt, k):
 
 
 def keep_bigger_or_equal_than_threshold(key2cnt, threshold):
-    return {key: cnt for (key, cnt) in key2cnt.iteritems() if cnt >= threshold}
+    return {key: cnt for (key, cnt) in key2cnt.items() if cnt >= threshold}
 
 
 def keep_smaller_or_equal_than_threshold(key2cnt, threshold):
-    return {key: cnt for (key, cnt) in key2cnt.iteritems() if cnt <= threshold}
+    return {key: cnt for (key, cnt) in key2cnt.items() if cnt <= threshold}
 
 
 def get_count_total(key2cnt):
-    return sum(key2cnt.itervalues())
+    return sum(key2cnt.values())
 
 
 def counts_to_fractions(key2cnt):
     total = float(get_count_total(key2cnt))
-    key2frac = {key: cnt / total for (key, cnt) in key2cnt.iteritems()}
+    key2frac = {key: cnt / total for (key, cnt) in key2cnt.items()}
     return key2frac
 
 

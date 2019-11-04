@@ -20,7 +20,7 @@ def get_ch2idx(with_pad=True,
         ch_lst.append("_OVERFLOW_")
     ch_lst.extend(["\t", "\n"])
     ch_lst.extend([chr(idx) for idx in range(32, 127)])
-    ch2idx = dict(zip(ch_lst, range(len(ch_lst))))
+    ch2idx = dict(list(zip(ch_lst, list(range(len(ch_lst))))))
     return ch2idx
 
 
@@ -42,19 +42,19 @@ def count_tokens(sentence_lst):
 
 def keep_most_frequent_tokens(token_to_count, num_tokens):
     top_items = sorted(
-        token_to_count.items(), key=lambda x: x[1], reverse=True)[:num_tokens]
+        list(token_to_count.items()), key=lambda x: x[1], reverse=True)[:num_tokens]
     return dict(top_items)
 
 
 def remove_rare_tokens(token_to_count, keep_thres):
-    return {tk: c for (tk, c) in token_to_count.iteritems() if c >= keep_thres}
+    return {tk: c for (tk, c) in token_to_count.items() if c >= keep_thres}
 
 
 def index_tokens(tokens, start_index=0):
     assert start_index >= 0
     num_tokens = len(tokens)
     token_to_index = dict(
-        zip(tokens, range(start_index, num_tokens + start_index)))
+        list(zip(tokens, list(range(start_index, num_tokens + start_index)))))
     return token_to_index
 
 
@@ -74,8 +74,8 @@ def index_with_special_tokens(tokens,
     num_special_tokens = sum(
         [with_pad, with_bos, with_eos, with_unk, with_overflow])
     token_to_index = dict(
-        zip(tokens,
-            range(num_special_tokens, num_normal_tokens + num_special_tokens)))
+        list(zip(tokens,
+            list(range(num_special_tokens, num_normal_tokens + num_special_tokens)))))
 
     idx = 0
     if with_pad:
@@ -339,7 +339,7 @@ def flat_to_multi_indices(indices, shape):
     strides = np.cumprod(aux[::-1])[::-1].astype('int64')
     multi_indices = np.zeros((num_indices, num_dims), dtype='int64')
     acc = np.array(indices)
-    for idx in xrange(num_dims):
+    for idx in range(num_dims):
         x = strides[idx]
         multi_indices[:, idx] = np.floor_divide(acc, x)
         acc -= x * multi_indices[:, idx]

@@ -28,7 +28,7 @@ def test_with_fn(ds, fn):
 
 # assumes that eq_fn is transitive.
 def all_equivalent_with_fn(ds, eq_fn):
-    for d1, d2 in itertools.izip(ds[:-1], ds[1:]):
+    for d1, d2 in zip(ds[:-1], ds[1:]):
         if not eq_fn(d1, d2):
             return False
     return True
@@ -37,7 +37,7 @@ def all_equivalent_with_fn(ds, eq_fn):
 def assert_length_consistency(xs_lst):
     assert len(set(map(len, xs_lst))) == 1
 
-    for i in xrange(len(xs_lst)):
+    for i in range(len(xs_lst)):
         assert set([len(xs[i]) for xs in xs_lst]) == 1
 
 

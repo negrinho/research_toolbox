@@ -2,7 +2,7 @@
 # from https://github.com/raghakot/keras-resnet ; release under the MIT license.
 # Copyright by Raghavendra Kotikalapudi and others.
 
-from __future__ import division
+
 
 import six
 from keras.models import Model

@@ -5,13 +5,13 @@ import research_toolbox.tb_utils as tb_ut
 
 
 def shuffle(xs):
-    idxs = range(len(xs))
+    idxs = list(range(len(xs)))
     random.shuffle(idxs)
     return [xs[i] for i in idxs]
 
 
 def random_permutation(n):
-    idxs = range(n)
+    idxs = list(range(n))
     random.shuffle(idxs)
     return idxs
 
@@ -38,12 +38,12 @@ def sort(xs, fns, increasing=True):
 
 
 def apply_permutation(xs, idxs):
-    assert len(set(idxs).intersection(range(len(xs)))) == len(xs)
+    assert len(set(idxs).intersection(list(range(len(xs))))) == len(xs)
     return [xs[i] for i in idxs]
 
 
 def apply_inverse_permutation(xs, idxs):
-    assert len(set(idxs).intersection(range(len(xs)))) == len(xs)
+    assert len(set(idxs).intersection(list(range(len(xs))))) == len(xs)
 
     out_xs = [None] * len(xs)
     for i_from, i_to in enumerate(idxs):
@@ -52,7 +52,7 @@ def apply_inverse_permutation(xs, idxs):
 
 
 def shuffle_tied(xs_lst):
-    assert len(xs_lst) > 0 and len(map(len, xs_lst)) == 1
+    assert len(xs_lst) > 0 and len(list(map(len, xs_lst))) == 1
 
     n = len(xs_lst[0])
     idxs = random_permutation(n)
@@ -73,8 +73,8 @@ def uniform_sample_product(lst_lst_vals, num_samples):
         components.append([lst[j] for j in idxs])
 
     samples = []
-    for i in xrange(num_samples):
-        samples.append([components[j][i] for j in xrange(n)])
+    for i in range(num_samples):
+        samples.append([components[j][i] for j in range(n)])
     return samples
 
 

@@ -24,7 +24,7 @@ def create_experimsent_from_fn(fn, overwrite=False):
         tb_fs.delete_folder(experiment_folderpath, False)
 
     cfgs = fn()
-    argname_lst = cfgs[0].keys()
+    argname_lst = list(cfgs[0].keys())
     argval_lst_lst = [[d[k] for k in argname_lst] for d in cfgs]
     tb_ex.create_experiment_folder('beam_learn/main.py', argname_lst, argval_lst_lst,
         'out_folder', 'experiments', '', experiment_name, 'beam_learn', True)
@@ -83,7 +83,7 @@ def keys_with_variation(ds):
 
 def get_float_formatter(num_decimals, multiplier=1.0):
     def fn(x):
-        return unicode('{0:.{1}f}'.format(
+        return str('{0:.{1}f}'.format(
             np.round(multiplier * x, num_decimals), num_decimals))
     return fn
 
@@ -110,9 +110,9 @@ def create_table_from_experiment(experiment_name, rows, columns, values,
         c.pop(k)
 
     ks.pop('out_folder')
-    print "***%s***" % experiment_name
+    print("***%s***" % experiment_name)
     pprint(ks)
-    print
+    print()
 
     ds = [summarize_results(tb_ut.merge_dicts(x)) for x in xs]
 
@@ -181,7 +181,7 @@ def create_table_from_experiment(experiment_name, rows, columns, values,
     if print_to_terminal:
         # print to terminal
         for s in lines:
-            print s
+            print(s)
 
     # write to file
     tb_io.write_textfile('analyses/%s/results.txt' % experiment_name, lines)
@@ -189,7 +189,7 @@ def create_table_from_experiment(experiment_name, rows, columns, values,
         sort_keys=True, abort_if_different_keys=abort_if_different_keys)
 
 def create_table(experiment_name, bio=False, use_checkpoints=False):
-    print experiment_name
+    print(experiment_name)
     vals = ['dev_accuracy', 'test_accuracy']
     if bio:
         vals += ['test_fb1', 'test_precision', 'test_recall']

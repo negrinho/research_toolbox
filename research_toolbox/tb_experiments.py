@@ -85,7 +85,7 @@ def generate_call_lines(main_filepath,
     # arguments for the call
     sc_lines += [
         '    --%s %s \\' % (k, v)
-        for k, v in itertools.izip(argname_lst[:-1], argvalue_lst[:-1])
+        for k, v in zip(argname_lst[:-1], argvalue_lst[:-1])
     ]
     # add the output redirection.
     if output_filepath is not None:
@@ -139,7 +139,7 @@ def create_runall_script(experiment_folderpath):
     sc_lines = ['#!/bin/bash']
     sc_lines += [
         tb_fs.join_paths([experiment_folderpath,
-                          "cfg%d" % i, 'run.sh']) for i in xrange(num_exps)
+                          "cfg%d" % i, 'run.sh']) for i in range(num_exps)
     ]
 
     # creating the run all script.
@@ -305,7 +305,7 @@ def map_experiment_folder(experiment_folderpath, fn):
 
     ps = []
     rs = []
-    for i in xrange(num_exps):
+    for i in range(num_exps):
         p = tb_fs.join_paths([experiment_folderpath, 'cfg%d' % i])
         rs.append(fn(p))
         ps.append(p)
@@ -336,7 +336,7 @@ def load_experiment_folder(experiment_folderpath,
     if only_load_if_all_exist:
         proc_ps = []
         proc_rs = []
-        for i in xrange(len(ps)):
+        for i in range(len(ps)):
             if all([x is not None for x in rs[i]]):
                 proc_ps.append(ps[i])
                 proc_rs.append(rs[i])
@@ -346,7 +346,7 @@ def load_experiment_folder(experiment_folderpath,
 
 
 def generate_config_args(d, ortho=False):
-    ks = d.keys()
+    ks = list(d.keys())
     if not ortho:
         vs_list = tb_ut.iter_product([d[k] for k in ks])
     else:
@@ -355,7 +355,7 @@ def generate_config_args(d, ortho=False):
     argval_lst_lst = []
     for vs in vs_list:
         proc_v = []
-        for k, v in itertools.izip(ks, vs):
+        for k, v in zip(ks, vs):
             if isinstance(k, tuple):
                 # if it is iterable, unpack v
                 if isinstance(v, list) or isinstance(v, tuple):
@@ -410,7 +410,7 @@ def copy_regroup_config_generator(d_gen, d_update):
 
     # regrouping of the dictionary.
     proc_d = dict(d_gen)
-    for (k, v) in d_update.iteritems():
+    for (k, v) in d_update.items():
         # check that the dimensions are consistent.
         assert all([((not isinstance(vi, tuple)) and
                      (not isinstance(vi, tuple))) or len(vi) == len(k)
@@ -418,7 +418,7 @@ def copy_regroup_config_generator(d_gen, d_update):
 
         if isinstance(k, tuple):
             # remove the original keys
-            map(proc_d.pop, k)
+            list(map(proc_d.pop, k))
             proc_d[k] = v
         else:
             proc_d[k] = v
@@ -439,12 +439,12 @@ def run_guarded_experiment(experiment_fn, maxmemory_mbs, maxtime_secs,
         try:
             mbs_p = tb_lg.memory_process(p.pid)
             if mbs_p > maxmemory_mbs:
-                print "Limit of %0.2f MB exceeded. Terminating." % maxmemory_mbs
+                print("Limit of %0.2f MB exceeded. Terminating." % maxmemory_mbs)
                 p.terminate()
 
             secs_p = time.time() - start
             if secs_p > maxtime_secs:
-                print "Limit of %0.2f secs exceeded. Terminating." % maxtime_secs
+                print("Limit of %0.2f secs exceeded. Terminating." % maxtime_secs)
                 p.terminate()
         except psutil.NoSuchProcess:
             pass
@@ -494,7 +494,7 @@ class SummaryDict:
         self._check_consistency()
 
     def append(self, d):
-        for k, v in d.iteritems():
+        for k, v in d.items():
             assert type(k) == str and len(k) > 0
             if k not in self.d:
                 self.d[k] = []
@@ -511,7 +511,7 @@ class SummaryDict:
 
     def _check_consistency(self):
         assert (not self.abort_if_different_lengths) or (len(
-            set([len(v) for v in self.d.itervalues()])) <= 1)
+            set([len(v) for v in self.d.values()])) <= 1)
 
     def get_dict(self):
         return dict(self.d)
@@ -584,7 +584,7 @@ class MemoManager:
 
     def delete_conditionally(self, delete_cond_fn):
         del_lst = []
-        for filename in self.key_to_filename.itervalues():
+        for filename in self.key_to_filename.values():
             config_filepath = self._get_filepath('config', filename, 'json')
             config = tb_io.read_jsonfile(config_filepath)
             if delete_cond_fn(config):
@@ -600,7 +600,7 @@ class MemoManager:
 
     def get_configs(self):
         cfgs = []
-        for filename in self.key_to_filename.itervalues():
+        for filename in self.key_to_filename.values():
             d = tb_io.read_jsonfile(
                 self._get_filepath('config', filename, 'json'))
             cfgs.append(d)

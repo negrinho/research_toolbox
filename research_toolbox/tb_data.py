@@ -1,6 +1,6 @@
 import numpy as np
 import os
-import cPickle
+import pickle
 import research_toolbox.tb_augmentation as tb_au
 import research_toolbox.tb_io as tb_io
 
@@ -37,7 +37,7 @@ def load_mnist(data_folderpath,
 def _load_cifar_datafile(filepath, labels_key, num_classes, normalize_range,
                          flatten, one_hot):
     with open(filepath, 'rb') as f:
-        d = cPickle.load(f)
+        d = pickle.load(f)
 
         # for the data
         X = d['data'].astype('float32')

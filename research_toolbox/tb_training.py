@@ -264,7 +264,7 @@ def get_random_step_schedule(min_rate_power,
         if ensure_decreasing or ensure_increasing:
             values = []
             idx = 0
-            for _ in xrange(num_switch_points):
+            for _ in range(num_switch_points):
                 idx = np.random.randint(idx, len(possible_values))
                 values.append(possible_values[idx])
             values = np.array(values)

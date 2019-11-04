@@ -23,7 +23,7 @@ def random_crop(X, out_height, out_width):
     start_is = np.random.randint(in_height - out_height + 1, size=num_examples)
     start_js = np.random.randint(in_width - out_width + 1, size=num_examples)
     out_X = []
-    for ind in xrange(num_examples):
+    for ind in range(num_examples):
         st_i = start_is[ind]
         st_j = start_js[ind]
 
@@ -76,7 +76,7 @@ def random_scale_rotate(X, angle_min, angle_max, scale_min, scale_max):
 
     out_lst = []
     rot_center = (height / 2, width / 2)
-    for i in xrange(n):
+    for i in range(n):
         A = cv2.getRotationMatrix2D(rot_center, angles[i], scales[i])
         out = cv2.warpAffine(X[i], A, (width, height))
         out_lst.append(out)

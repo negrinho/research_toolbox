@@ -18,10 +18,10 @@ def powers_of_two(starting_power, ending_power, is_int_type=False):
 def set_object_variables(obj, d, abort_if_exists=False,
                          abort_if_notexists=True):
     d_to = vars(obj)
-    assert (not abort_if_exists) or all([k not in d_to for k in d.iterkeys()])
-    assert (not abort_if_notexists) or all([k in d_to for k in d.iterkeys()])
+    assert (not abort_if_exists) or all([k not in d_to for k in d.keys()])
+    assert (not abort_if_notexists) or all([k in d_to for k in d.keys()])
 
-    for k, v in d.iteritems():
+    for k, v in d.items():
         assert not hasattr(obj, k)
         setattr(obj, k, v)
     return obj
@@ -41,7 +41,7 @@ def partial_apply(fn, d):
 
 
 def to_list_fn(f):
-    return lambda xs: map(f, xs)
+    return lambda xs: list(map(f, xs))
 
 
 def transform(x, fns):
@@ -54,14 +54,14 @@ def zip_toggle(xs):
     """[[x1, ...], [x2, ...], [x3, ...]] --> [(x1, x2, .., xn) ...];
         [(x1, x2, .., xn) ...] --> [[x1, ...], [x2, ...], [x3, ...]]"""
     assert isinstance(xs, list)
-    return zip(*xs)
+    return list(zip(*xs))
 
 
 ### useful iterators
 def iter_product(lst_lst_vals, tuple_fmt=True):
     vs = list(itertools.product(*lst_lst_vals))
     if not tuple_fmt:
-        vs = map(list, vs)
+        vs = list(map(list, vs))
     return vs
 
 
@@ -73,9 +73,9 @@ def iter_ortho_all(lst_lst_vals, reference_idxs, ignore_repeats=True):
     rs = [] if not ignore_repeats else [tuple(ref_r)]
 
     num_lsts = len(lst_lst_vals)
-    for i in xrange(num_lsts):
+    for i in range(num_lsts):
         num_vals = len(lst_lst_vals[i])
-        for j in xrange(num_vals):
+        for j in range(num_vals):
             if ignore_repeats and j == reference_idxs[i]:
                 continue
 
@@ -95,7 +95,7 @@ def iter_ortho_single(lst_lst_vals,
     rs = [] if not put_reference_first else [tuple(ref_r)]
 
     num_vals = len(lst_lst_vals[iteration_idx])
-    for j in xrange(num_vals):
+    for j in range(num_vals):
         if put_reference_first and j == reference_idxs[iteration_idx]:
             continue
 
@@ -112,7 +112,7 @@ def get_argument_names(fn):
 ### dictionary manipulation
 def create_dict(ks, vs):
     assert len(ks) == len(vs)
-    return dict(zip(ks, vs))
+    return dict(list(zip(ks, vs)))
 
 
 def create_dataframe(ds, abort_if_different_keys=True):
@@ -141,7 +141,7 @@ def copy_update_dict(d, d_other):
 def merge_dicts(ds):
     out_d = {}
     for d in ds:
-        for (k, v) in d.iteritems():
+        for (k, v) in d.items():
             assert k not in out_d
             out_d[k] = v
     return out_d
@@ -164,7 +164,7 @@ def flatten(d):
     assert isinstance(d, dict)
 
     xs = []
-    for (_, k_xs) in d.iteritems():
+    for (_, k_xs) in d.items():
         assert isinstance(k_xs, list)
         xs.extend(k_xs)
     return xs
@@ -176,7 +176,7 @@ def recursive_groupby(p, fn):
     if isinstance(p, list):
         return groupby(p, fn)
     else:
-        return {k: recursive_groupby(k_p, fn) for (k, k_p) in p.iteritems()}
+        return {k: recursive_groupby(k_p, fn) for (k, k_p) in p.items()}
 
 
 def recursive_flatten(p):
@@ -186,7 +186,7 @@ def recursive_flatten(p):
         return list(p)
     else:
         xs = []
-        for (_, k_p) in p.iteritems():
+        for (_, k_p) in p.items():
             xs.extend(recursive_flatten(k_p))
         return xs
 
@@ -195,9 +195,9 @@ def recursive_map(p, fn):
     assert isinstance(p, (dict, list))
 
     if isinstance(p, list):
-        return map(fn, p)
+        return list(map(fn, p))
     else:
-        return {k: recursive_map(k_p, fn) for (k, k_p) in p.iteritems()}
+        return {k: recursive_map(k_p, fn) for (k, k_p) in p.items()}
 
 
 def recursive_index(d, ks):
@@ -207,21 +207,21 @@ def recursive_index(d, ks):
 
 
 def filter_dict(d, fn):
-    return {k: v for (k, v) in d.iteritems() if fn(k, v)}
+    return {k: v for (k, v) in d.items() if fn(k, v)}
 
 
 def map_dict(d, fn):
-    return {k: fn(k, v) for (k, v) in d.iteritems()}
+    return {k: fn(k, v) for (k, v) in d.items()}
 
 
 def invert_injective_dict(a_to_b):
-    b_to_a = dict([(b, a) for (a, b) in a_to_b.iteritems()])
+    b_to_a = dict([(b, a) for (a, b) in a_to_b.items()])
     return b_to_a
 
 
 def invert_noninjective_dict(a_to_b):
     d = {}
-    for (x, y) in a_to_b.iteritems():
+    for (x, y) in a_to_b.items():
         if y not in d:
             d[y] = []
         d[y].append(x)
@@ -267,7 +267,7 @@ def flatten_nested_list(xs):
 def key_union(ds):
     ks = []
     for d in ds:
-        ks.extend(d.keys())
+        ks.extend(list(d.keys()))
     return list(set(ks))
 
 
@@ -276,7 +276,7 @@ def key_intersection(ds):
 
     ks = set(ds[0].keys())
     for d in ds[1:]:
-        ks.intersection_update(d.keys())
+        ks.intersection_update(list(d.keys()))
     return list(ks)
 
 
@@ -284,7 +284,7 @@ def key_intersection(ds):
 def key_to_values(ds):
     out_d = {}
     for d in ds:
-        for (k, v) in d.iteritems():
+        for (k, v) in d.items():
             if k not in out_d:
                 out_d[k] = set()
             out_d[k].add(v)
@@ -307,17 +307,15 @@ def set_dict_values(d_to,
                     d_from,
                     abort_if_exists=False,
                     abort_if_notexists=True):
-    assert (not abort_if_exists) or all(
-        [k not in d_to for k in d_from.iterkeys()])
-    assert (not abort_if_notexists) or all(
-        [k in d_to for k in d_from.iterkeys()])
+    assert (not abort_if_exists) or all([k not in d_to for k in d_from.keys()])
+    assert (not abort_if_notexists) or all([k in d_to for k in d_from.keys()])
 
     d_to.update(d_from)
 
 
 def sort_dict_items(d, by_key=True, decreasing=False):
     key_fn = (lambda x: x[0]) if by_key else (lambda x: x[1])
-    return sorted(d.items(), key=key_fn, reverse=decreasing)
+    return sorted(list(d.items()), key=key_fn, reverse=decreasing)
 
 
 def print_dict(d, width=1):
@@ -329,24 +327,23 @@ def pprint_dict_keys(d, ks):
 
 
 def collapse_nested_dict(d, sep='.'):
-    assert all([type(k) == str for k in d.iterkeys()]) and (all([
-        all([type(kk) == str for kk in d[k].iterkeys()]) for k in d.iterkeys()
-    ]))
+    assert all([type(k) == str for k in d.keys()]) and (all(
+        [all([type(kk) == str for kk in d[k].keys()]) for k in d.keys()]))
 
     ps = []
-    for k in d.iterkeys():
-        for (kk, v) in d[k].iteritems():
+    for k in d.keys():
+        for (kk, v) in d[k].items():
             p = (k + sep + kk, v)
             ps.append(p)
     return dict(ps)
 
 
 def uncollapse_nested_dict(d, sep='.'):
-    assert all([type(k) == str for k in d.iterkeys()]) and (all(
-        [len(k.split()) == 2 for k in d.iterkeys()]))
+    assert all([type(k) == str for k in d.keys()]) and (all(
+        [len(k.split()) == 2 for k in d.keys()]))
 
     out_d = []
-    for (k, v) in d.iteritems():
+    for (k, v) in d.items():
         (k1, k2) = k.split(sep)
         if k1 not in out_d:
             d[k1] = {}

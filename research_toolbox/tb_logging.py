@@ -156,17 +156,17 @@ class MemoryTracker:
 
 
 def print_time(timer, prefix_str='', units='seconds'):
-    print('%s%0.2f %s since start.' %
-          (prefix_str, timer.time_since_start(units=units), units))
-    print("%s%0.2f %s seconds since last call." %
-          (prefix_str, timer.time_since_last(units=units), units))
+    print(('%s%0.2f %s since start.' %
+          (prefix_str, timer.time_since_start(units=units), units)))
+    print(("%s%0.2f %s seconds since last call." %
+          (prefix_str, timer.time_since_last(units=units), units)))
 
 
 def print_memory(memer, prefix_str='', units='megabytes'):
-    print('%s%0.2f %s total.' % (prefix_str, memer.memory_total(units=units),
-                                 units.upper()))
-    print("%s%0.2f %s since last call." %
-          (prefix_str, memer.memory_since_last(units=units), units.upper()))
+    print(('%s%0.2f %s total.' % (prefix_str, memer.memory_total(units=units),
+                                 units.upper())))
+    print(("%s%0.2f %s since last call." %
+          (prefix_str, memer.memory_since_last(units=units), units.upper())))
 
 
 def print_memorytime(memer,
@@ -184,11 +184,11 @@ def print_oneliner_memorytime(memer,
                               mem_units='megabytes',
                               time_units='seconds'):
 
-    print('%s (%0.2f %s last; %0.2f %s total; %0.2f %s last; %0.2f %s total)' %
+    print(('%s (%0.2f %s last; %0.2f %s total; %0.2f %s last; %0.2f %s total)' %
           (prefix_str, timer.time_since_last(units=time_units), time_units,
            timer.time_since_start(units=time_units), time_units,
            memer.memory_since_last(units=mem_units), mem_units.upper(),
-           memer.memory_total(units=mem_units), mem_units.upper()))
+           memer.memory_total(units=mem_units), mem_units.upper())))
 
 
 class Logger:

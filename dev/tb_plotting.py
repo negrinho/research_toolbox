@@ -35,24 +35,24 @@ def generate_latex_table(mat, num_places, row_labels=None, column_labels=None,
         # determine the bolded elements; if many conflict, bold them all.
         if bold_type[1] == 'in_row':
             idxs = aux_fn(proc_mat, axis=1)
-            for i in xrange(mat.shape[0]):
+            for i in range(mat.shape[0]):
                 mval = proc_mat[i, idxs[i]]
                 bold_mat[i, :] = (proc_mat[i, :] == mval)
 
         elif bold_type[1] == 'in_col':
             idxs = aux_fn(proc_mat, axis=0)
-            for j in xrange(mat.shape[1]):
+            for j in range(mat.shape[1]):
                 mval = proc_mat[idxs[j], j]
                 bold_mat[:, j] = (proc_mat[:, j] == mval)
         else:
             idx = aux_fn(proc_mat)
-            for j in xrange(mat.shape[1]):
+            for j in range(mat.shape[1]):
                 mval = proc_mat[:][idx]
                 bold_mat[:, j] = (proc_mat[:, j] == mval)
 
     # construct the strings for the data.
     data = np.zeros_like(mat, dtype=object)
-    for (i, j) in tb_ut.iter_product(range(mat.shape[0]), range(mat.shape[1])):
+    for (i, j) in tb_ut.iter_product(list(range(mat.shape[0])), list(range(mat.shape[1]))):
         s = "%s" % proc_mat[i, j]
         if bold_mat[i, j]:
             s = "\\textbf{%s}" % s
@@ -73,7 +73,7 @@ def generate_latex_table(mat, num_places, row_labels=None, column_labels=None,
         with open(filepath, 'w') as f:
             f.write(table)
     if show:
-        print table
+        print(table)
 
 
 # subplot example. needs to be refactored to something more general.

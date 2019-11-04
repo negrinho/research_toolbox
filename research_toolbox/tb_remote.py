@@ -4,7 +4,7 @@ import paramiko
 import getpass
 import inspect
 import uuid
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import research_toolbox.tb_utils as tb_ut
 import research_toolbox.tb_resources as tb_rs
 import research_toolbox.tb_logging as tb_lg
@@ -237,7 +237,7 @@ class LithiumRunner:
 
         # get the resource availability and filter out unavailable nodes.
         d = get_lithium_resource_availability(**args)
-        d = {k: v for (k, v) in d.iteritems() if v is not None}
+        d = {k: v for (k, v) in d.items() if v is not None}
 
         g = get_lithium_nodes()
 
@@ -247,7 +247,7 @@ class LithiumRunner:
             if x['require_nodes'] is not None:
                 req_nodes = x['require_nodes']
             else:
-                req_nodes = d.keys()
+                req_nodes = list(d.keys())
 
             # based on the gpu type restriction.
             if x['require_gpu_types'] is not None:
@@ -255,7 +255,7 @@ class LithiumRunner:
                     tb_ut.subset_dict_via_selection(g, x['require_gpu_types']))
             else:
                 # NOTE: only consider the nodes that are available anyway.
-                req_gpu_nodes = d.keys()
+                req_gpu_nodes = list(d.keys())
 
             # potentially available nodes to place this job.
             nodes = list(set(req_nodes).intersection(req_gpu_nodes))
@@ -298,10 +298,10 @@ class LithiumRunner:
             if not assigned:
                 run_cfgs.append(None)
                 if run_only_if_enough_resources_for_all:
-                    print("Insufficient resources to satisfy"
+                    print(("Insufficient resources to satisfy"
                           " (cpus=%d, gpus=%d, mem=%0.3f%s)" %
                           (x['num_cpus'], x['num_gpus'], x['mem_budget'],
-                           x['mem_units']))
+                           x['mem_units'])))
                     return None
 
         # running the jobs that have a valid config.
@@ -498,5 +498,5 @@ def download_file(urlpath, folderpath, filename=None,
     filepath = tb_fs.join_paths([folderpath, filename])
     assert tb_fs.folder_exists(folderpath)
     assert (not tb_fs.file_exists(filepath)) or abort_if_file_exists
-    f = urllib.URLopener()
+    f = urllib.request.URLopener()
     f.retrieve(urlpath, filepath)

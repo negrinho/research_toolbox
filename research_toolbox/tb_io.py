@@ -34,7 +34,7 @@ def write_dictfile(filepath, d, sep="\t", ks=None):
     can be passed to specify an ordering to write the keys to disk.
     """
     if ks == None:
-        ks = d.keys()
+        ks = list(d.keys())
     assert all([type(k) == str and sep not in k for k in ks])
     lines = [sep.join([k, str(d[k])]) for k in ks]
     write_textfile(filepath, lines)
@@ -82,7 +82,7 @@ def read_jsonlogfile(filepath):
 
 def write_jsonlogfile(filepath, ds, append=False):
     write_textfile(
-        filepath, map(json2str, ds), append=append, with_newline=True)
+        filepath, list(map(json2str, ds)), append=append, with_newline=True)
 
 
 def read_picklefile(filepath):
