@@ -33,3 +33,45 @@ class LinePlot:
         if show:
             f.show()
         return f
+
+
+# TODO: check this. this has not been tested.
+class RunningLinePlot:
+
+    def __init__(self):
+        self.key2vs = {}
+
+    def add(self, key, y, x=None):
+        if key not in self.key2vs:
+            d = {'ys': []}
+            if x is not None:
+                d["xs"] = []
+            self.key2vs[key] = d
+
+        d = self.key2vs[key]
+        if x is not None:
+            d["xs"].append(x)
+        d["ys"].append(y)
+
+    def plot(self, keys=None, show=True, filepath=None, title=None, xlabel=None, ylabel=None):
+        f = plt.figure()
+
+        if keys is None:
+            keys = self.key2vs.keys()
+        for key in keys:
+            d = self.key2vs[key]
+            if 'xs' in d:
+                plt.plot(d["xs"], d["ys"], label=key)
+            else:
+                plt.plot(d["ys"], label=key)
+
+        plt.title(title)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.legend(loc='best')
+
+        if filepath != None:
+            f.savefig(filepath, bbox_inches='tight')
+        if show:
+            f.show()
+        return f
