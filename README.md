@@ -1,3 +1,7 @@
+## Installation
+
+`pip install research_toolbox`
+
 ## Motivation for a research toolbox
 
 This repo contains a number of Python tools that I developed for doing experimental research in machine learning.
